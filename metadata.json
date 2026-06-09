@@ -1,0 +1,6 @@
+{
+  "name": "Real-Time Chat Hub",
+  "description": "A modern, real-time communication platform featuring direct messaging, multi-user rooms, typing indicators, read receipts, and presence tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
