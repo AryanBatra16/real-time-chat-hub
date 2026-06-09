@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { User, Message, Room } from "./types";
 import LoginScreen from "./components/LoginScreen";
+import LandingPage from "./components/LandingPage";
 import RoomSidebar from "./components/RoomSidebar";
 import ChatWindow from "./components/ChatWindow";
 import InfoSidebar from "./components/InfoSidebar";
@@ -12,6 +13,7 @@ const MESSAGES_STORAGE_KEY = "chat_hub_messages_v1";
 const STORED_TOKEN_KEY = "chat_hub_jwt_token";
 
 export default function App() {
+  const [showLanding, setShowLanding] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -366,6 +368,10 @@ export default function App() {
         return matchingUser ? matchingUser.username : "Someone";
       });
   };
+
+  if (showLanding && !currentUser) {
+    return <LandingPage onLaunch={() => setShowLanding(false)} />;
+  }
 
   if (!currentUser) {
     return (

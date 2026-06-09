@@ -1,6 +1,9 @@
-import React, { useState } from "react";
-import { motion } from "motion/react";
-import { MessageSquare, Sparkles, Send } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "motion/react";
+import { 
+  MessageSquare, Zap, Shield, Sparkles, ArrowRight, 
+  Activity, Flame, Send
+} from "lucide-react";
 
 interface LoginScreenProps {
   onLogin: (identifier: string, password: string, callback: (err?: string) => void) => void;
@@ -15,6 +18,8 @@ const MEMORABLE_NAMES = [
 ];
 
 export default function LoginScreen({ onLogin, onRegister, loading }: LoginScreenProps) {
+  // Navigation & interaction states
+  const [showLoginSection, setShowLoginSection] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   
   // Login fields
@@ -28,6 +33,35 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
 
   const [localError, setLocalError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const loginCardRef = useRef<HTMLDivElement>(null);
+
+  // Mouse tilt animation coordinates for the 3D showcase card
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  // Smooth springs to avoid jittery rotation
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [15, -15]), { stiffness: 150, damping: 20 });
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-15, 15]), { stiffness: 150, damping: 20 });
+
+  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+    const el = event.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    
+    // Relative coordinates between -0.5 and 0.5
+    const relativeX = (event.clientX - rect.left) / width - 0.5;
+    const relativeY = (event.clientY - rect.top) / height - 0.5;
+
+    x.set(relativeX);
+    y.set(relativeY);
+  }
+
+  function handleMouseLeave() {
+    // Reset to center smoothly
+    x.set(0);
+    y.set(0);
+  }
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,220 +130,538 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
   const handleRandomize = () => {
     const randomName = MEMORABLE_NAMES[Math.floor(Math.random() * MEMORABLE_NAMES.length)];
     const randomNumber = Math.floor(100 + Math.random() * 900);
-    const combined = `${randomName}${randomNumber}`;
-    setRegUsername(combined);
+    setRegUsername(`${randomName}${randomNumber}`);
     setLocalError("");
   };
 
+  // Scroll smoothly to login section
+  const handleGetStarted = () => {
+    setShowLoginSection(true);
+    setTimeout(() => {
+      loginCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+  };
+
   return (
-    <div id="login-screen-root" className="min-h-screen bg-[#1E1F22] flex flex-col justify-center items-center px-4 relative overflow-hidden font-sans">
-      {/* Background ambient decorative blurs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-[#5865F2]/10 blur-3xl -translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-3xl translate-y-1/2 translate-x-1/2 pointer-events-none" />
+    <div id="landing-container" className="min-h-screen bg-[#1E1F22] text-[#DBDEE1] relative overflow-x-hidden font-sans select-none scroll-smooth w-full">
+      {/* Background Grid Pattern + Radial Ambient Lighting */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[#5865F2]/10 blur-[130px] pointer-events-none" />
+      <div className="absolute bottom-[20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-indigo-500/5 blur-[150px] pointer-events-none" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="w-full max-w-md"
-      >
-        {/* Modern high-contrast logo mark */}
-        <div className="flex flex-col items-center mb-8 text-center">
-          <div className="bg-[#5865F2] p-3.5 rounded-[16px] shadow-lg mb-4 cursor-pointer hover:scale-105 transition-transform">
-            <MessageSquare className="w-8 h-8 text-white stroke-[2.5]" />
+      {/* Styled Glass Navigation Bar */}
+      <header className="sticky top-0 z-50 bg-[#1E1F22]/70 backdrop-blur-md border-b border-[#2B2D31]/40 h-16 px-6 lg:px-12 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-[#5865F2] p-2 rounded-[10px] shadow-lg shadow-[#5865F2]/20 flex items-center justify-center">
+            <MessageSquare className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+          <span className="font-bold text-lg text-white tracking-tight flex items-center gap-1.5">
             Real-Time Chat <span className="text-[#5865F2]">Hub</span>
-          </h1>
-          <p className="text-[#949BA4] text-sm mt-3 max-w-xs font-normal">
-            Securely connect with online users and rooms using your hub account.
-          </p>
+          </span>
         </div>
 
-        {/* Central interactive card */}
-        <div className="bg-[#2B2D31] border border-[#1e1f22] rounded-xl p-8 shadow-2xl relative">
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#949BA4] bg-[#2B2D31]/45 px-3 py-1.5 rounded-full border border-[#1e1f22]/20">
+            <span className="w-2 h-2 bg-[#23A559] rounded-full animate-pulse" />
+            <span className="font-semibold tracking-wide">Socket Mesh Active</span>
+          </div>
           
-          {/* Tab Selection */}
-          <div className="flex mb-6 border-b border-[#1e1f22]/60">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('login');
-                setLocalError("");
-                setSuccessMsg("");
-              }}
-              className={`flex-1 text-center pb-2.5 border-b-2 font-bold text-sm cursor-pointer transition-colors ${
-                activeTab === 'login' ? 'border-[#5865F2] text-white' : 'border-transparent text-[#949BA4] hover:text-[#DBDEE1]'
-              }`}
+          <button 
+            onClick={handleGetStarted}
+            className="text-xs font-bold text-white bg-[#5865F2] hover:bg-opacity-95 transition-all px-4 py-2 rounded-lg cursor-pointer flex items-center gap-1.5 shadow-sm"
+          >
+            Launch Client
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </header>
+
+      {/* Hero Section Container */}
+      <main className="max-w-7xl mx-auto px-6 lg:px-12 pt-12 md:pt-20 pb-24 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        
+        {/* Left Column Text & Action Hub */}
+        <div className="lg:col-span-6 space-y-8 flex flex-col justify-center text-left">
+          
+          {/* Version / Release Tag */}
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 bg-[#2B2D31]/80 border border-[#1e1f22] rounded-full px-3.5 py-1.5 w-fit"
+          >
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#23A559] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#23A559]"></span>
+            </span>
+            <span className="text-[11px] font-bold text-white tracking-widest uppercase">Next Generation WebSocket Engine v2.0</span>
+          </motion.div>
+
+          {/* Majestic Hero Typography */}
+          <div className="space-y-4">
+            <motion.h1 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.1]"
             >
-              Log In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('register');
-                setLocalError("");
-                setSuccessMsg("");
-              }}
-              className={`flex-1 text-center pb-2.5 border-b-2 font-bold text-sm cursor-pointer transition-colors ${
-                activeTab === 'register' ? 'border-[#5865F2] text-white' : 'border-transparent text-[#949BA4] hover:text-[#DBDEE1]'
-              }`}
+              Real-time collaboration. <br />
+              <span className="text-[#5865F2] relative">
+                Zero friction.
+                <span className="absolute bottom-1 left-0 w-full h-[6px] bg-[#5865F2]/20 rounded-full" />
+              </span>
+            </motion.h1>
+            
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-base md:text-lg text-[#949BA4] max-w-xl font-normal leading-relaxed"
             >
-              Register
-            </button>
+              Experience instantaneous node interactions. Persist rooms, direct messages, and authentication profiles securely using our integrated Supabase engine. Setup an account and plunge instantly into shared workspace channels.
+            </motion.p>
           </div>
 
-          {successMsg && (
-            <div className="bg-[#23A559]/10 border border-[#23A559]/20 text-[#23A559] rounded-lg p-3.5 text-xs mb-4">
-              {successMsg}
+          {/* Action CTAs */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex flex-wrap items-center gap-4"
+          >
+            <button
+              onClick={handleGetStarted}
+              className="px-8 py-4 bg-[#5865F2] hover:bg-opacity-95 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-[#5865F2]/25 cursor-pointer flex items-center gap-2 group text-sm md:text-base"
+            >
+              Launch Chatroom
+              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </button>
+            
+            <a
+              href="#key-features"
+              className="px-6 py-4 bg-[#2B2D31] hover:bg-[#35373C] border border-[#1e1f22] text-white font-semibold rounded-xl transition-all cursor-pointer text-sm md:text-base flex items-center gap-1.5"
+            >
+              Explore Tech Stack
+            </a>
+          </motion.div>
+
+          {/* High-Contrast Interactive Floating Metadata Tags */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="grid grid-cols-3 gap-6 pt-6 border-t border-[#2B2D31]/40 max-w-lg"
+          >
+            <div>
+              <p className="text-xl md:text-2xl font-black text-white">100%</p>
+              <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mt-1">Full-Mesh Sockets</p>
             </div>
-          )}
+            <div>
+              <p className="text-xl md:text-2xl font-black text-white">&lt; 3ms</p>
+              <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mt-1">Message Ingress</p>
+            </div>
+            <div>
+              <p className="text-xl md:text-2xl font-black text-white">Secure</p>
+              <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mt-1">Supabase DB</p>
+            </div>
+          </motion.div>
+        </div>
 
-          {activeTab === 'login' ? (
-            <form onSubmit={handleLoginSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="login-identifier" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
-                  Username or Email
-                </label>
-                <input
-                  id="login-identifier"
-                  type="text"
-                  placeholder="Enter username or email"
-                  value={loginIdentifier}
-                  onChange={(e) => setLoginIdentifier(e.target.value)}
-                  disabled={loading}
-                  className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm"
-                />
+        {/* Right Column: Stunning Interactive 3D Perspective Card Showcase */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="lg:col-span-6 flex justify-center items-center h-[460px] md:h-[540px] relative pointer-events-auto"
+          style={{ perspective: 1000 }}
+        >
+          {/* Main 3D Card utilizing mouse tilt states */}
+          <motion.div
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
+            style={{
+              rotateX,
+              rotateY,
+              transformStyle: "preserve-3d",
+            }}
+            className="w-full max-w-[390px] md:max-w-[420px] bg-[#2B2D31]/95 rounded-2xl border border-[#1e1f22] p-6 shadow-2xl relative cursor-grab active:cursor-grabbing hover:shadow-[#5865F2]/10 transition-shadow duration-300"
+          >
+            {/* Header Element with deep 3D separation */}
+            <div 
+              style={{ transform: "translateZ(30px)" }}
+              className="flex items-center justify-between pb-4 border-b border-[#1e1f22]/60 mb-5"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-3 h-3 rounded-full bg-[#F23F43]" />
+                <div className="w-3 h-3 rounded-full bg-[#FAA81A]" />
+                <div className="w-3 h-3 rounded-full bg-[#23A559]" />
+                <span className="text-[11px] tracking-wide font-bold text-[#949BA4] uppercase ml-2 select-none">Holographic #general</span>
               </div>
+              <span className="p-1.5 bg-[#1E1F22] rounded-md text-[#5865F2]">
+                <Activity className="w-3.5 h-3.5 animate-pulse" />
+              </span>
+            </div>
 
-              <div>
-                <label htmlFor="login-password" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
-                  Password
-                </label>
-                <input
-                  id="login-password"
-                  type="password"
-                  placeholder="Enter password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  disabled={loading}
-                  className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm"
-                />
-              </div>
-
-              {localError && (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg p-3 text-xs">
-                  {localError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center items-center gap-2 bg-[#5865F2] hover:bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-md disabled:opacity-50 disabled:pointer-events-none group cursor-pointer"
+            {/* Embedded mockup chats inside the layer */}
+            <div className="space-y-4 relative">
+              
+              {/* Message 1 (Moderate Depth) */}
+              <div 
+                style={{ transform: "translateZ(45px)" }}
+                className="flex items-start gap-3 bg-[#1E1F22]/70 rounded-xl p-3 border border-white/5"
               >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Log In</span>
-                    <Send className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                  </>
-                )}
-              </button>
-            </form>
+                <div className="w-7 h-7 rounded-full bg-[#23A559] flex items-center justify-center font-black text-[10px] text-white">
+                  PE
+                </div>
+                <div className="space-y-1 overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-white">PixelEcho</span>
+                    <span className="text-[9px] text-[#949BA4]">Just now</span>
+                  </div>
+                  <p className="text-[11.5px] text-[#DBDEE1]">Is the local high-performance message cache enabled?</p>
+                </div>
+              </div>
+
+              {/* Message 2 (Higher Depth) */}
+              <div 
+                style={{ transform: "translateZ(70px)" }}
+                className="flex items-start gap-3 bg-[#5865F2] rounded-xl p-3.5 shadow-lg border border-white/10 relative -left-4 -right-1"
+              >
+                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center font-black text-[10px] text-[#5865F2]">
+                  CY
+                </div>
+                <div className="space-y-1 overflow-hidden">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-white">CyberScribe</span>
+                    <span className="bg-[#23a559] text-[8px] font-black tracking-wide text-white px-1.5 py-0.5 rounded uppercase">Server</span>
+                  </div>
+                  <p className="text-[12px] font-medium text-white leading-snug">Yes! Deliveries are instantaneous across the native Node network. Try moving your cursor—this layout preserves full 3D perspective!</p>
+                </div>
+              </div>
+
+              {/* Message 3 (Extreme Holographic Floating Element) */}
+              <div 
+                style={{ transform: "translateZ(90px)" }}
+                className="bg-[#1E1F22] p-2.5 rounded-lg border border-[#5865F2]/40 shadow-xl max-w-fit absolute top-[70%] right-[5%] flex items-center gap-2.5 text-[11px]"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-[#23A559] animate-ping" />
+                <span className="text-white font-bold">12 Users Online Now</span>
+                <Sparkles className="w-3.5 h-3.5 text-[#FAA81A]" />
+              </div>
+            </div>
+
+            {/* Input Mockup Box (Moderate Depth) */}
+            <div 
+              style={{ transform: "translateZ(50px)" }}
+              className="mt-6 bg-[#1E1F22]/70 border border-[#1e1f22] p-2.5 rounded-xl flex items-center justify-between"
+            >
+              <span className="p-1 bg-[#2B2D31] rounded text-[#949BA4] text-[10px] font-bold">#</span>
+              <span className="text-[11px] text-zinc-650 flex-1 ml-2.5">Send interactive response...</span>
+              <div className="w-2.5 h-2.5 rounded-full bg-[#5865F2]" />
+            </div>
+          </motion.div>
+        </motion.div>
+
+      </main>
+
+      {/* Feature Grid / Technological Overview */}
+      <section id="key-features" className="py-20 bg-[#232428]/40 border-y border-[#2B2D31]/40">
+        <div className="max-w-7xl mx-auto px-6 lg:px-12">
+          
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
+            <h2 className="text-xs uppercase font-extrabold tracking-widest text-[#5865F2]">State Architecture</h2>
+            <h3 className="text-2xl md:text-3xl font-black text-white leading-tight">Engineered for seamless ephemeral sync</h3>
+            <p className="text-sm text-[#949BA4]">Our full-mesh workspace delivers instantaneous socket dispatch with native state recovery.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            {/* Metric 1 */}
+            <div className="bg-[#2B2D31]/60 border border-[#1e1f22]/80 p-6 rounded-xl space-y-4 hover:border-[#5865F2]/40 transition-colors group">
+              <div className="w-10 h-10 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/30 flex items-center justify-center text-[#5865F2] group-hover:scale-110 transition-transform">
+                <Zap className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-white text-base">Instant Ingress</h4>
+              <p className="text-xs text-[#949BA4] leading-relaxed">
+                Powered by native Socket.io protocols and high performance connection pipelines. Delivers user states in under 3 milliseconds.
+              </p>
+            </div>
+
+            {/* Metric 2 */}
+            <div className="bg-[#2B2D31]/60 border border-[#1e1f22]/80 p-6 rounded-xl space-y-4 hover:border-[#5865F2]/40 transition-colors group">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-[#23A559] group-hover:scale-110 transition-transform">
+                <Shield className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-white text-base">Secure Persistence</h4>
+              <p className="text-xs text-[#949BA4] leading-relaxed">
+                Auth profiles, custom user avatars, rooms, and chat records are safely stored inside your Supabase project instance.
+              </p>
+            </div>
+
+            {/* Metric 3 */}
+            <div className="bg-[#2B2D31]/60 border border-[#1e1f22]/80 p-6 rounded-xl space-y-4 hover:border-[#5865F2]/40 transition-colors group">
+              <div className="w-10 h-10 rounded-lg bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-500 group-hover:scale-110 transition-transform">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <h4 className="font-bold text-white text-base">Channels & DMs</h4>
+              <p className="text-xs text-[#949BA4] leading-relaxed">
+                Seamlessly toggle between public collaboration channels and secure direct messaging with modern live typing indicator displays.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Integrated Login / Access Hub Card */}
+      <section id="login-portal" ref={loginCardRef} className="py-24 max-w-md mx-auto px-6 relative">
+        <AnimatePresence mode="wait">
+          {!showLoginSection ? (
+            <motion.div
+              key="enter-cta"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="text-center space-y-6"
+            >
+              <div className="bg-[#2B2D31] border border-[#1e1f22] p-8 rounded-2xl shadow-xl flex flex-col items-center">
+                <Flame className="w-10 h-10 text-[#5865F2] animate-bounce mb-4" />
+                <h3 className="text-lg font-black text-white">Join the Messaging Arena</h3>
+                <p className="text-xs text-[#949BA4] leading-relaxed mt-2 max-w-xs">
+                  Generate suggestion names or select your personalized handle to jump straight to the live client terminal.
+                </p>
+                <button
+                  onClick={() => setShowLoginSection(true)}
+                  className="mt-6 w-full py-3.5 bg-[#5865F2] hover:bg-opacity-95 text-white text-xs tracking-wider uppercase font-extrabold rounded-lg shadow-md cursor-pointer transition-colors"
+                >
+                  Access Client Hub
+                </button>
+              </div>
+            </motion.div>
           ) : (
-            <form onSubmit={handleRegisterSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="reg-username" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
-                  Display Username
-                </label>
-                <div className="relative">
-                  <input
-                    id="reg-username"
-                    type="text"
-                    placeholder="e.g. CaptainSocks"
-                    value={regUsername}
-                    onChange={(e) => setRegUsername(e.target.value)}
-                    disabled={loading}
-                    maxLength={24}
-                    className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm pr-12"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRandomize}
-                    disabled={loading}
-                    title="Generate random name suggestion"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-neutral-800/40 rounded-lg text-[#5865F2] hover:text-indigo-400 transition-colors cursor-pointer"
-                  >
-                    <Sparkles className="w-4.5 h-4.5" />
-                  </button>
-                </div>
+            <motion.div
+              key="login-form-card"
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -15 }}
+              className="bg-[#2B2D31] border border-[#1e1f22] rounded-2xl p-8 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-2 h-full bg-[#5865F2]" />
+              
+              <div className="mb-6">
+                <span className="text-[10px] uppercase font-extrabold tracking-widest text-[#5865F2]">Security Gate</span>
+                <h3 className="text-lg font-black text-white mt-1">Authenticate Identity</h3>
+                <p className="text-xs text-[#949BA4] mt-1.5 leading-relaxed">
+                  Log in or register your account to synchronize your session data.
+                </p>
               </div>
 
-              <div>
-                <label htmlFor="reg-email" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
-                  Email Address
-                </label>
-                <input
-                  id="reg-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={regEmail}
-                  onChange={(e) => setRegEmail(e.target.value)}
-                  disabled={loading}
-                  className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm"
-                />
+              {/* Tab Selection */}
+              <div className="flex mb-6 border-b border-[#1e1f22]/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('login');
+                    setLocalError("");
+                    setSuccessMsg("");
+                  }}
+                  className={`flex-1 text-center pb-2.5 border-b-2 font-bold text-sm cursor-pointer transition-colors ${
+                    activeTab === 'login' ? 'border-[#5865F2] text-white' : 'border-transparent text-[#949BA4] hover:text-[#DBDEE1]'
+                  }`}
+                >
+                  Log In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('register');
+                    setLocalError("");
+                    setSuccessMsg("");
+                  }}
+                  className={`flex-1 text-center pb-2.5 border-b-2 font-bold text-sm cursor-pointer transition-colors ${
+                    activeTab === 'register' ? 'border-[#5865F2] text-white' : 'border-transparent text-[#949BA4] hover:text-[#DBDEE1]'
+                  }`}
+                >
+                  Register
+                </button>
               </div>
 
-              <div>
-                <label htmlFor="reg-password" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
-                  Password
-                </label>
-                <input
-                  id="reg-password"
-                  type="password"
-                  placeholder="Min 6 characters"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  disabled={loading}
-                  className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm"
-                />
-              </div>
-
-              {localError && (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg p-3 text-xs">
-                  {localError}
+              {successMsg && (
+                <div className="bg-[#23A559]/10 border border-[#23A559]/20 text-[#23A559] rounded-lg p-3.5 text-xs mb-4">
+                  {successMsg}
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center items-center gap-2 bg-[#5865F2] hover:bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-md disabled:opacity-50 disabled:pointer-events-none group cursor-pointer"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>Create Account</span>
-                    <Send className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                  </>
-                )}
-              </button>
-            </form>
+              {activeTab === 'login' ? (
+                <form onSubmit={handleLoginSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="login-identifier" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
+                      Username or Email
+                    </label>
+                    <input
+                      id="login-identifier"
+                      type="text"
+                      placeholder="Enter username or email"
+                      value={loginIdentifier}
+                      onChange={(e) => setLoginIdentifier(e.target.value)}
+                      disabled={loading}
+                      className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="login-password" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
+                      Password
+                    </label>
+                    <input
+                      id="login-password"
+                      type="password"
+                      placeholder="Enter password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      disabled={loading}
+                      className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm"
+                    />
+                  </div>
+
+                  {localError && (
+                    <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg p-3 text-xs">
+                      {localError}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginSection(false)}
+                      className="flex-1 text-center py-3 border border-[#1e1f22] hover:bg-[#35373C] text-xs font-bold rounded-lg text-white transition-colors cursor-pointer"
+                    >
+                      Back
+                    </button>
+                    
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-[2] flex justify-center items-center gap-2 bg-[#5865F2] hover:bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-md disabled:opacity-50 disabled:pointer-events-none group cursor-pointer text-xs uppercase tracking-wider"
+                    >
+                      {loading ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <span>Log In</span>
+                          <Send className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="reg-username" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
+                      Display Username
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="reg-username"
+                        type="text"
+                        placeholder="e.g. CaptainSocks"
+                        value={regUsername}
+                        onChange={(e) => setRegUsername(e.target.value)}
+                        disabled={loading}
+                        maxLength={24}
+                        className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm pr-12"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRandomize}
+                        disabled={loading}
+                        title="Generate random name suggestion"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-neutral-800/40 rounded-lg text-[#5865F2] hover:text-indigo-400 transition-colors cursor-pointer"
+                      >
+                        <Sparkles className="w-4.5 h-4.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg-email" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
+                      Email Address
+                    </label>
+                    <input
+                      id="reg-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      disabled={loading}
+                      className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg-password" className="block text-xs font-bold uppercase tracking-wider text-[#949BA4] mb-2">
+                      Password
+                    </label>
+                    <input
+                      id="reg-password"
+                      type="password"
+                      placeholder="Min 6 characters"
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      disabled={loading}
+                      className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded-lg px-4 py-2.5 text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2] focus:ring-1 focus:ring-[#5865F2]/50 transition-all font-medium text-sm"
+                    />
+                  </div>
+
+                  {localError && (
+                    <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg p-3 text-xs">
+                      {localError}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginSection(false)}
+                      className="flex-1 text-center py-3 border border-[#1e1f22] hover:bg-[#35373C] text-xs font-bold rounded-lg text-white transition-colors cursor-pointer"
+                    >
+                      Back
+                    </button>
+                    
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-[2] flex justify-center items-center gap-2 bg-[#5865F2] hover:bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg transition-all shadow-md disabled:opacity-50 disabled:pointer-events-none group cursor-pointer text-xs uppercase tracking-wider"
+                    >
+                      {loading ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <span>Register</span>
+                          <Send className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
           )}
+        </AnimatePresence>
+      </section>
 
-        </div>
-
-        {/* Footer info metadata */}
-        <div className="text-center mt-6">
-          <p className="text-xs text-[#949BA4] flex items-center justify-center gap-1.5">
+      {/* Futuristic Clean Footer */}
+      <footer className="border-t border-[#2B2D31]/40 bg-[#1e1f22]/80 backdrop-blur pb-12 pt-8 text-center text-xs text-[#949BA4]">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-[#23A559] rounded-full animate-pulse" />
-            <span>Secure encryption powered by bcrypt and JSON Web Tokens.</span>
-          </p>
+            <span>High precision Node process live ingress active.</span>
+          </div>
+          <div>
+            <span>© {new Date().getFullYear()} Real-Time Chat Hub. Connected with Supabase.</span>
+          </div>
         </div>
-      </motion.div>
+      </footer>
     </div>
   );
 }
