@@ -8,37 +8,15 @@ import jwt from "jsonwebtoken";
 import { createServer as createViteServer } from "vite";
 import { User, Message, Room } from "./src/types.js";
 
-const USERS_DB_PATH = path.join(process.cwd(), "users-db.json");
-const JWT_SECRET = "chat-hub-secret-key-12345";
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
 
-interface RegisteredUser {
-  id: string;
-  username: string;
-  email: string;
-  passwordHash: string;
-  color: string;
-  avatarUrl: string;
-}
+dotenv.config();
 
-function loadUsers(): RegisteredUser[] {
-  try {
-    if (fs.existsSync(USERS_DB_PATH)) {
-      const data = fs.readFileSync(USERS_DB_PATH, "utf8");
-      return JSON.parse(data);
-    }
-  } catch (e) {
-    console.error("Error loading users database", e);
-  }
-  return [];
-}
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://your-supabase-url.supabase.co";
+const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "your-supabase-anon-key";
 
-function saveUsers(usersList: RegisteredUser[]) {
-  try {
-    fs.writeFileSync(USERS_DB_PATH, JSON.stringify(usersList, null, 2), "utf8");
-  } catch (e) {
-    console.error("Error saving users database", e);
-  }
-}
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Beautiful Tailwind color pool for assigning to users
 const COLOR_POOL = [
@@ -86,7 +64,7 @@ async function startServer() {
   io.on("connection", (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    // Registration Handler
+    // Registration Handler - Supabase Auth & Profiles
     socket.on("user-register", async (payload: { username: string; email: string; password?: string }, callback) => {
       const { username, email, password } = payload;
       if (!username || !email || !password) {
@@ -98,36 +76,42 @@ async function startServer() {
 
       // Simple validation checks
       if (trimmedName.length < 2 || trimmedName.length > 24 || !/^[a-zA-Z0-9 _]+$/.test(trimmedName)) {
-        return callback({ error: "Invalid username pattern" });
-      }
-
-      const usersList = loadUsers();
-      const nameConflict = usersList.some(u => u.username.toLowerCase() === trimmedName.toLowerCase());
-      const emailConflict = usersList.some(u => u.email.toLowerCase() === trimmedEmail);
-
-      if (nameConflict) {
-        return callback({ error: "Username is already taken" });
-      }
-      if (emailConflict) {
-        return callback({ error: "Email is already registered" });
+        return callback({ error: "Username must be 2-24 characters (letters, numbers, spaces, underscores)." });
       }
 
       try {
-        const passwordHash = await bcrypt.hash(password, 10);
+        // 1. Sign up user in Supabase Auth
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password: password
+        });
+
+        if (signUpError) {
+          return callback({ error: signUpError.message });
+        }
+
+        const authUser = signUpData.user;
+        if (!authUser) {
+          return callback({ error: "Registration failed." });
+        }
+
         const randomColor = COLOR_POOL[Math.floor(Math.random() * COLOR_POOL.length)];
         const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trimmedName)}`;
-        
-        const newRegUser: RegisteredUser = {
-          id: `u-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-          username: trimmedName,
-          email: trimmedEmail,
-          passwordHash,
-          color: randomColor,
-          avatarUrl
-        };
 
-        usersList.push(newRegUser);
-        saveUsers(usersList);
+        // 2. Create profile row linked to Auth User
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({
+            id: authUser.id,
+            username: trimmedName,
+            email: trimmedEmail,
+            color: randomColor,
+            avatar_url: avatarUrl
+          });
+
+        if (profileError) {
+          return callback({ error: profileError.message });
+        }
 
         callback({ success: true });
       } catch (err) {
@@ -135,47 +119,69 @@ async function startServer() {
       }
     });
 
-    // Login Handler
+    // Login Handler - Supabase Auth
     socket.on("user-login", async (payload: { identifier?: string; password?: string }, callback) => {
       const { identifier, password } = payload;
       if (!identifier || !password) {
         return callback({ error: "All fields are required" });
       }
 
-      const trimmedIdentifier = identifier.trim().toLowerCase();
-      const usersList = loadUsers();
-
-      const matchedUser = usersList.find(
-        u => u.username.toLowerCase() === trimmedIdentifier || u.email.toLowerCase() === trimmedIdentifier
-      );
-
-      if (!matchedUser) {
-        return callback({ error: "Invalid username/email or password" });
-      }
+      const trimmedIdentifier = identifier.trim();
+      let emailToAuth = trimmedIdentifier;
 
       try {
-        const isMatch = await bcrypt.compare(password, matchedUser.passwordHash);
-        if (!isMatch) {
-          return callback({ error: "Invalid username/email or password" });
+        // If username is passed instead of email, lookup email in profiles table
+        if (!trimmedIdentifier.includes("@")) {
+          const { data: profile, error: profileErr } = await supabase
+            .from("profiles")
+            .select("email")
+            .eq("username", trimmedIdentifier)
+            .maybeSingle();
+
+          if (profileErr || !profile) {
+            return callback({ error: "Invalid username/email or password" });
+          }
+          emailToAuth = profile.email;
         }
 
-        // Generate JWT Token
-        const token = jwt.sign(
-          { userId: matchedUser.id, username: matchedUser.username },
-          JWT_SECRET,
-          { expiresIn: "7d" }
-        );
+        // Authenticate using Supabase Auth client credentials
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: emailToAuth,
+          password: password
+        });
+
+        if (signInError) {
+          return callback({ error: signInError.message });
+        }
+
+        const session = signInData.session;
+        const authUser = signInData.user;
+
+        if (!session || !authUser) {
+          return callback({ error: "Authentication failed" });
+        }
+
+        // Retrieve profile details
+        const { data: profile, error: profileErr } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authUser.id)
+          .single();
+
+        if (profileErr || !profile) {
+          return callback({ error: "User profile not found" });
+        }
 
         callback({
           success: true,
-          token,
+          token: session.access_token,
           user: {
-            id: matchedUser.id,
-            username: matchedUser.username,
-            email: matchedUser.email,
+            id: profile.id,
+            username: profile.username,
+            email: profile.email,
             online: true,
-            avatarUrl: matchedUser.avatarUrl,
-            color: matchedUser.color
+            avatarUrl: profile.avatar_url,
+            color: profile.color
           }
         });
       } catch (err) {
@@ -183,48 +189,77 @@ async function startServer() {
       }
     });
 
-    // Token-based Session Initialization Handler
-    socket.on("user-init-auth", (payload: { token?: string }, callback) => {
+    // Session Initialization Handler - Supabase token validation and DB sync
+    socket.on("user-init-auth", async (payload: { token?: string }, callback) => {
       const { token } = payload;
       if (!token) {
         return callback({ error: "Authentication token is required" });
       }
 
       try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; username: string };
-        const usersList = loadUsers();
-        const dbUser = usersList.find(u => u.id === decoded.userId);
+        const { data: { user: authUser }, error: verifyError } = await supabase.auth.getUser(token);
 
-        if (!dbUser) {
-          return callback({ error: "Authenticated user no longer exists" });
+        if (verifyError || !authUser) {
+          return callback({ error: "Session expired or invalid token" });
         }
 
-        // Check if user is already marked online elsewhere and disconnect old socket if needed
+        const { data: profile, error: profileErr } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", authUser.id)
+          .single();
+
+        if (profileErr || !profile) {
+          return callback({ error: "Profile not found" });
+        }
+
+        // Disconnect duplicate socket connections if already logged in elsewhere
         for (const [sid, u] of users.entries()) {
-          if (u.id === dbUser.id) {
+          if (u.id === profile.id) {
             io.sockets.sockets.get(sid)?.disconnect();
             users.delete(sid);
           }
         }
 
         const user: User = {
-          id: socket.id, // Keep socket.id for real-time delivery routing compatibility
-          username: dbUser.username,
-          email: dbUser.email,
+          id: socket.id,
+          username: profile.username,
+          email: profile.email,
           online: true,
-          avatarUrl: dbUser.avatarUrl,
-          color: dbUser.color
+          avatarUrl: profile.avatar_url,
+          color: profile.color
         };
 
-        // Add to online store
+        // Add to active online users list
         users.set(socket.id, user);
 
-        // Join standard rooms
+        // Join rooms
         rooms.forEach((r) => {
           socket.join(r.id);
         });
 
-        const relevantHistory = messageCache.filter((m) => m.roomId);
+        // Retrieve last 100 messages history from Supabase database
+        const { data: historyData, error: historyErr } = await supabase
+          .from("messages")
+          .select("*")
+          .order("timestamp", { ascending: true })
+          .limit(100);
+
+        const historyList = historyErr ? [] : (historyData || []).map(m => ({
+          id: m.id,
+          senderId: m.sender_id,
+          senderName: m.sender_name,
+          senderColor: m.sender_color,
+          receiverId: m.receiver_id || undefined,
+          roomId: m.room_id || undefined,
+          content: m.content,
+          timestamp: m.timestamp,
+          status: m.status,
+          readBy: m.read_by || []
+        }));
+
+        // Filter messages for room context
+        const relevantHistory = historyList.filter(m => m.roomId);
 
         callback({
           success: true,
@@ -242,8 +277,8 @@ async function startServer() {
       }
     });
 
-    // Handle messages
-    socket.on("send-message", (payload: { id: string; content: string; roomId?: string; receiverId?: string }) => {
+    // Handle messages - Persist to Supabase
+    socket.on("send-message", async (payload: { id: string; content: string; roomId?: string; receiverId?: string }) => {
       const sender = users.get(socket.id);
       if (!sender) return;
 
@@ -256,31 +291,45 @@ async function startServer() {
         roomId: payload.roomId,
         receiverId: payload.receiverId,
         timestamp: new Date().toISOString(),
-        status: "sent"
+        status: "sent",
+        readBy: []
       };
 
-      // If it exists, mark status as delivered if target is online
       if (payload.receiverId) {
-        const receiver = users.get(payload.receiverId);
+        const receiver = Array.from(users.values()).find(u => u.id === payload.receiverId);
         if (receiver && receiver.online) {
           message.status = "delivered";
         }
       }
 
-      // Add to server-side cache
-      messageCache.push(message);
-      if (messageCache.length > 500) {
-        messageCache.shift(); // Evict oldest
+      // Persist to Supabase
+      try {
+        await supabase
+          .from("messages")
+          .insert({
+            id: message.id,
+            sender_id: message.senderId,
+            sender_name: message.senderName,
+            sender_color: message.senderColor,
+            receiver_id: message.receiverId || null,
+            room_id: message.roomId || null,
+            content: message.content,
+            timestamp: message.timestamp,
+            status: message.status,
+            read_by: []
+          });
+      } catch (e) {
+        console.error("Error persisting message to Supabase", e);
       }
 
       // Dispatch to room or receivers
       if (payload.roomId) {
-        // Broadcast to everyone in group including sender
         io.to(payload.roomId).emit("message-receive", message);
       } else if (payload.receiverId) {
-        // Send to receiver
-        io.to(payload.receiverId).emit("message-receive", message);
-        // Send copy back to sender's other tabs/sockets (redundant here, but good for robustness)
+        const receiverSocketId = Array.from(users.entries()).find(([sid, u]) => u.id === payload.receiverId)?.[0];
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit("message-receive", message);
+        }
         socket.emit("message-receive", message);
       }
     });
@@ -290,7 +339,6 @@ async function startServer() {
       const sender = users.get(socket.id);
       if (!sender) return;
 
-      // Broadcast to other recipients
       socket.broadcast.emit("typing-status-update", {
         userId: sender.id,
         username: sender.username,
@@ -299,21 +347,29 @@ async function startServer() {
       });
     });
 
-    // Read receipt updates
-    socket.on("mark-as-read", (payload: { senderId: string }) => {
-      // Receiver (socket.id) has read senderId's messages. Let's broadcast back.
-      // Update our cache status
-      messageCache.forEach((m) => {
-        if (m.senderId === payload.senderId && m.receiverId === socket.id && m.status !== "read") {
-          m.status = "read";
-        }
-      });
+    // Read receipt updates - Persist status to Supabase
+    socket.on("mark-as-read", async (payload: { senderId: string }) => {
+      const reader = users.get(socket.id);
+      if (!reader) return;
 
-      // Target sender gets updated status
-      io.to(payload.senderId).emit("messages-read-ack", {
-        readerId: socket.id,
-        senderId: payload.senderId
-      });
+      try {
+        await supabase
+          .from("messages")
+          .update({ status: "read" })
+          .eq("sender_id", payload.senderId)
+          .eq("receiver_id", reader.id)
+          .neq("status", "read");
+      } catch (e) {
+        console.error("Error updating read status in Supabase", e);
+      }
+
+      const senderSocketId = Array.from(users.entries()).find(([sid, u]) => u.id === payload.senderId)?.[0];
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("messages-read-ack", {
+          readerId: reader.id,
+          senderId: payload.senderId
+        });
+      }
     });
 
     // Handle room creation
@@ -336,7 +392,6 @@ async function startServer() {
 
       rooms.push(newRoom);
       
-      // Let everyone know about the brand new channel
       io.emit("room-created", newRoom);
       callback({ success: true, room: newRoom });
     });
@@ -351,7 +406,7 @@ async function startServer() {
 
         console.log(`User left: ${user.username} (${socket.id})`);
         socket.broadcast.emit("user-left", {
-          id: socket.id,
+          id: user.id,
           username: user.username
         });
       }
