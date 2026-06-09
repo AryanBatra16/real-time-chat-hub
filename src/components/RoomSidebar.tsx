@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { User, Room } from "../types";
 import { Hash, MessageSquare, Plus, Check, X, ShieldAlert, LogOut, Search } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { formatLastSeen } from "../utils/formatTime";
 
 interface RoomSidebarProps {
   currentUser: User;
@@ -221,7 +222,14 @@ export default function RoomSidebar({
                           u.online ? "bg-[#23A559]" : "bg-[#80848E]"
                         }`} />
                       </div>
-                      <span className="truncate">{u.username}</span>
+                      <div className="truncate flex flex-col justify-center">
+                        <span className="truncate leading-tight text-sm">{u.username}</span>
+                        {!u.online && u.lastSeen && (
+                          <span className="text-[10px] text-[#949BA4] leading-normal font-medium truncate">
+                            {formatLastSeen(u.lastSeen)}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {unread > 0 && (

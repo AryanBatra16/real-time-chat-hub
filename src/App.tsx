@@ -31,8 +31,17 @@ export default function App() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const [timeTick, setTimeTick] = useState(0);
 
   const socketRef = useRef<Socket | null>(null);
+
+  // Trigger relative time recalculation every 60s
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeTick(prev => prev + 1);
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   // 1. Initial State Sync: Load local message history
   useEffect(() => {

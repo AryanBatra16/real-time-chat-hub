@@ -18,6 +18,7 @@ export interface Message {
   content: string;
   timestamp: string; // ISO string
   status: 'sent' | 'delivered' | 'read';
+  readBy?: string[]; // List of user IDs who have read this group message
 }
 
 export interface Room {

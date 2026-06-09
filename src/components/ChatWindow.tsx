@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { User, Message, Room } from "../types";
 import { Send, Menu, Smile, Search, HelpCircle, Check, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { formatLastSeen } from "../utils/formatTime";
 
 interface ChatWindowProps {
   currentUser: User;
@@ -40,7 +41,7 @@ export default function ChatWindow({
   const activeDMUser = activeChatType === 'dm' ? users.find((u) => u.id === activeChatId) : null;
 
   const chatTitle = activeRoom ? `#${activeRoom.name}` : activeDMUser ? activeDMUser.username : "ChatRoom";
-  const chatDescription = activeRoom ? activeRoom.description : activeDMUser ? (activeDMUser.online ? "Online now" : "Offline") : "";
+  const chatDescription = activeRoom ? activeRoom.description : activeDMUser ? (activeDMUser.online ? "Online now" : `Last seen ${formatLastSeen(activeDMUser.lastSeen)}`) : "";
 
   // Filter messages for current context
   const filteredMessages = messages.filter((m) => {
@@ -63,8 +64,13 @@ export default function ChatWindow({
   }, [filteredMessages, activeTypers]);
 
   // Handle typing status throttling
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
+
+    // Auto-grow height logic
+    const textarea = e.target;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
 
     if (!isTypingStateRef.current) {
       isTypingStateRef.current = true;
@@ -79,6 +85,13 @@ export default function ChatWindow({
     }, 1500);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
   const handleSend = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const text = inputText.trim();
@@ -86,6 +99,12 @@ export default function ChatWindow({
 
     onSendMessage(text);
     setInputText("");
+
+    // Reset height of compose area
+    const textarea = document.getElementById("compose-textarea") as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.style.height = 'auto';
+    }
 
     // Clear typing indicator instantly
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -97,6 +116,15 @@ export default function ChatWindow({
 
   const insertEmoji = (emoji: string) => {
     setInputText((prev) => prev + emoji);
+    // Focus and adjust height
+    setTimeout(() => {
+      const textarea = document.getElementById("compose-textarea") as HTMLTextAreaElement;
+      if (textarea) {
+        textarea.focus();
+        textarea.style.height = 'auto';
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+      }
+    }, 50);
   };
 
   // Convert individual timestamp to localized layout
@@ -137,6 +165,26 @@ export default function ChatWindow({
       return <CheckCheck className="w-3.5 h-3.5 text-sky-400 stroke-[2.5]" />;
     }
     return null;
+  };
+
+  const renderGroupReadReceipt = (msg: Message) => {
+    const readers = msg.readBy || [];
+    const otherReaders = readers.filter(uid => uid !== currentUser.id);
+    if (otherReaders.length === 0) return null;
+
+    const names = otherReaders.map(uid => {
+      const u = users.find(user => user.id === uid);
+      return u ? u.username : "Someone";
+    }).join(", ");
+
+    return (
+      <span 
+        className="text-[9px] text-[#949BA4] cursor-help hover:text-white select-none mt-1 block text-right font-medium"
+        title={`Read by: ${names}`}
+      >
+        Read by {otherReaders.length}
+      </span>
+    );
   };
 
   return (
@@ -234,6 +282,7 @@ export default function ChatWindow({
                         )}
                       </div>
                     </div>
+                    {isMine && activeChatType === 'room' && renderGroupReadReceipt(msg)}
                   </div>
                 </div>
               </div>
@@ -273,22 +322,31 @@ export default function ChatWindow({
 
         {/* Dynamic Compose Box */}
         <form onSubmit={handleSend} className="space-y-3">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 relative">
             {/* Quick action bar */}
             <div className="flex-1 relative flex bg-[#383A40] rounded-lg items-center px-4 py-0.5 border border-[#1e1f22]/5">
-              <input
-                type="text"
+              <textarea
+                id="compose-textarea"
+                rows={1}
                 placeholder={activeDMUser ? `Send private message to ${activeDMUser.username}...` : `Message #${chatTitle}...`}
                 value={inputText}
                 onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
                 maxLength={2000}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-[#DBDEE1] placeholder-[#6D6F78] focus:ring-0 py-2.5"
+                className="flex-1 bg-transparent border-none outline-none text-sm text-[#DBDEE1] placeholder-[#6D6F78] focus:ring-0 py-2.5 resize-none overflow-y-auto"
+                style={{ height: '40px', maxHeight: '120px' }}
               />
               
               <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center text-[#B5BAC1]">
                 <Smile className="w-4.5 h-4.5 text-[#949BA4] hover:text-white cursor-pointer transition-colors" />
               </div>
             </div>
+
+            {inputText.length > 1800 && (
+              <div className="absolute right-14 bottom-[-16px] text-[10px] text-[#949BA4] font-semibold select-none">
+                {inputText.length} / 2000
+              </div>
+            )}
 
             <button
               type="submit"
