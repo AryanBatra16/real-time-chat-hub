@@ -222,7 +222,7 @@ async function startServer() {
         }
 
         const user: User = {
-          id: socket.id,
+          id: profile.id,
           username: profile.username,
           email: profile.email,
           online: true,
@@ -238,12 +238,13 @@ async function startServer() {
           socket.join(r.id);
         });
 
-        // Retrieve last 100 messages history from Supabase database
+        // Retrieve last 150 relevant messages (rooms + DMs involving this user)
         const { data: historyData, error: historyErr } = await supabase
           .from("messages")
           .select("*")
+          .or(`room_id.not.is.null,sender_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
           .order("timestamp", { ascending: true })
-          .limit(100);
+          .limit(150);
 
         const historyList = historyErr ? [] : (historyData || []).map(m => ({
           id: m.id,
@@ -255,18 +256,21 @@ async function startServer() {
           content: m.content,
           timestamp: m.timestamp,
           status: m.status,
-          readBy: m.read_by || []
+          readBy: m.read_by || [],
+          replyToId: m.reply_to_id || undefined,
+          replyToName: m.reply_to_name || undefined,
+          replyToContent: m.reply_to_content || undefined,
+          isStarred: m.is_starred || false,
+          deliveredAt: m.delivered_at || undefined,
+          readAt: m.read_at || undefined
         }));
-
-        // Filter messages for room context
-        const relevantHistory = historyList.filter(m => m.roomId);
 
         callback({
           success: true,
           user,
           users: Array.from(users.values()),
           rooms,
-          history: relevantHistory
+          history: historyList
         });
 
         // Broadcast join event
@@ -278,7 +282,15 @@ async function startServer() {
     });
 
     // Handle messages - Persist to Supabase
-    socket.on("send-message", async (payload: { id: string; content: string; roomId?: string; receiverId?: string }) => {
+    socket.on("send-message", async (payload: { 
+      id: string; 
+      content: string; 
+      roomId?: string; 
+      receiverId?: string;
+      replyToId?: string;
+      replyToName?: string;
+      replyToContent?: string;
+    }) => {
       const sender = users.get(socket.id);
       if (!sender) return;
 
@@ -292,13 +304,18 @@ async function startServer() {
         receiverId: payload.receiverId,
         timestamp: new Date().toISOString(),
         status: "sent",
-        readBy: []
+        readBy: [],
+        replyToId: payload.replyToId,
+        replyToName: payload.replyToName,
+        replyToContent: payload.replyToContent,
+        isStarred: false
       };
 
       if (payload.receiverId) {
         const receiver = Array.from(users.values()).find(u => u.id === payload.receiverId);
         if (receiver && receiver.online) {
           message.status = "delivered";
+          message.deliveredAt = new Date().toISOString();
         }
       }
 
@@ -317,7 +334,13 @@ async function startServer() {
             content: message.content,
             timestamp: message.timestamp,
             status: message.status,
-            read_by: []
+            read_by: [],
+            reply_to_id: message.replyToId || null,
+            reply_to_name: message.replyToName || null,
+            reply_to_content: message.replyToContent || null,
+            is_starred: false,
+            delivered_at: message.deliveredAt || null,
+            read_at: null
           });
         if (dbErr) {
           console.error("[DB Error] Failed to persist message in Supabase:", dbErr);
@@ -358,10 +381,15 @@ async function startServer() {
       const reader = users.get(socket.id);
       if (!reader) return;
 
+      const readAtTime = new Date().toISOString();
+
       try {
         await supabase
           .from("messages")
-          .update({ status: "read" })
+          .update({ 
+            status: "read",
+            read_at: readAtTime
+          })
           .eq("sender_id", payload.senderId)
           .eq("receiver_id", reader.id)
           .neq("status", "read");
@@ -373,8 +401,82 @@ async function startServer() {
       if (senderSocketId) {
         io.to(senderSocketId).emit("messages-read-ack", {
           readerId: reader.id,
-          senderId: payload.senderId
+          senderId: payload.senderId,
+          readAt: readAtTime
         });
+      }
+    });
+
+    // Edit Message Handler
+    socket.on("edit-message", async (payload: { id: string; content: string }) => {
+      const sender = users.get(socket.id);
+      if (!sender) return;
+
+      try {
+        const { error } = await supabase
+          .from("messages")
+          .update({ content: payload.content })
+          .eq("id", payload.id)
+          .eq("sender_id", sender.id);
+
+        if (!error) {
+          io.emit("message-edited", {
+            id: payload.id,
+            content: payload.content
+          });
+        } else {
+          console.error("Supabase Error editing message:", error);
+        }
+      } catch (e) {
+        console.error("Error editing message", e);
+      }
+    });
+
+    // Delete Message Handler
+    socket.on("delete-message", async (payload: { id: string }) => {
+      const sender = users.get(socket.id);
+      if (!sender) return;
+
+      try {
+        const { error } = await supabase
+          .from("messages")
+          .delete()
+          .eq("id", payload.id)
+          .eq("sender_id", sender.id);
+
+        if (!error) {
+          io.emit("message-deleted", {
+            id: payload.id
+          });
+        } else {
+          console.error("Supabase Error deleting message:", error);
+        }
+      } catch (e) {
+        console.error("Error deleting message", e);
+      }
+    });
+
+    // Star/Pin Message Handler
+    socket.on("star-message", async (payload: { id: string; isStarred: boolean }) => {
+      const user = users.get(socket.id);
+      if (!user) return;
+
+      try {
+        const { error } = await supabase
+          .from("messages")
+          .update({ is_starred: payload.isStarred })
+          .eq("id", payload.id);
+
+        if (!error) {
+          io.emit("message-starred", {
+            id: payload.id,
+            isStarred: payload.isStarred
+          });
+        } else {
+          console.error("Supabase Error starring message:", error);
+        }
+      } catch (e) {
+        console.error("Error starring message", e);
       }
     });
 

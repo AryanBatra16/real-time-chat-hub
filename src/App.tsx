@@ -37,6 +37,16 @@ export default function App() {
 
   const socketRef = useRef<Socket | null>(null);
 
+  const activeChatIdRef = useRef(activeChatId);
+  const activeChatTypeRef = useRef(activeChatType);
+  const currentUserRef = useRef(currentUser);
+
+  useEffect(() => {
+    activeChatIdRef.current = activeChatId;
+    activeChatTypeRef.current = activeChatType;
+    currentUserRef.current = currentUser;
+  }, [activeChatId, activeChatType, currentUser]);
+
   // Trigger relative time recalculation every 60s
   useEffect(() => {
     const timer = setInterval(() => {
@@ -158,10 +168,10 @@ export default function App() {
 
       // Update unread badges
       const isCurrentLocation = 
-        (msg.roomId && activeChatType === 'room' && activeChatId === msg.roomId) ||
-        (msg.receiverId && !msg.roomId && activeChatType === 'dm' && activeChatId === msg.senderId);
+        (msg.roomId && activeChatTypeRef.current === 'room' && activeChatIdRef.current === msg.roomId) ||
+        (msg.receiverId && !msg.roomId && activeChatTypeRef.current === 'dm' && activeChatIdRef.current === msg.senderId);
 
-      const isMine = msg.senderId === socket.id;
+      const isMine = msg.senderId === currentUserRef.current?.id;
 
       if (!isCurrentLocation && !isMine) {
         const senderKey = msg.roomId ? msg.roomId : msg.senderId;
@@ -189,14 +199,35 @@ export default function App() {
       });
     });
 
-    socket.on("messages-read-ack", (payload: { readerId: string; senderId: string }) => {
+    socket.on("messages-read-ack", (payload: { readerId: string; senderId: string; readAt?: string }) => {
       setMessages((prev) =>
         prev.map((m) => {
           if (m.senderId === payload.senderId && m.receiverId === payload.readerId && m.status !== "read") {
-            return { ...m, status: "read" };
+            return { 
+              ...m, 
+              status: "read",
+              readAt: payload.readAt || new Date().toISOString(),
+              deliveredAt: m.deliveredAt || new Date().toISOString()
+            };
           }
           return m;
         })
+      );
+    });
+
+    socket.on("message-edited", (payload: { id: string; content: string }) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === payload.id ? { ...m, content: payload.content } : m))
+      );
+    });
+
+    socket.on("message-deleted", (payload: { id: string }) => {
+      setMessages((prev) => prev.filter((m) => m.id !== payload.id));
+    });
+
+    socket.on("message-starred", (payload: { id: string; isStarred: boolean }) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === payload.id ? { ...m, isStarred: payload.isStarred } : m))
       );
     });
 
@@ -282,17 +313,32 @@ export default function App() {
   };
 
   // Perform message deliveries
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = (text: string, replyToId?: string, replyToName?: string, replyToContent?: string) => {
     if (!socketRef.current || !currentUser) return;
 
     const payload = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       content: text,
       roomId: activeChatType === 'room' ? activeChatId : undefined,
-      receiverId: activeChatType === 'dm' ? activeChatId : undefined
+      receiverId: activeChatType === 'dm' ? activeChatId : undefined,
+      replyToId,
+      replyToName,
+      replyToContent
     };
 
     socketRef.current.emit("send-message", payload);
+  };
+
+  const handleEditMessage = (id: string, newContent: string) => {
+    socketRef.current?.emit("edit-message", { id, content: newContent });
+  };
+
+  const handleDeleteMessage = (id: string) => {
+    socketRef.current?.emit("delete-message", { id });
+  };
+
+  const handleStarMessage = (id: string, isStarred: boolean) => {
+    socketRef.current?.emit("star-message", { id, isStarred });
   };
 
   // Handle typing statuses broadcast
@@ -441,6 +487,9 @@ export default function App() {
           onSendMessage={handleSendMessage}
           onSendTypingStatus={handleSendTypingStatus}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onEditMessage={handleEditMessage}
+          onDeleteMessage={handleDeleteMessage}
+          onStarMessage={handleStarMessage}
         />
 
         {/* Info panel */}

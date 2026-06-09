@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { User, Message, Room } from "../types";
-import { Send, Menu, Smile, Search, HelpCircle, Check, CheckCheck } from "lucide-react";
+import { 
+  Send, Menu, Smile, HelpCircle, Check, CheckCheck, 
+  CornerUpLeft, Copy, Forward, Edit2, Star, Trash2, X, Info
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { formatLastSeen } from "../utils/formatTime";
 
@@ -11,10 +14,13 @@ interface ChatWindowProps {
   rooms: Room[];
   users: User[];
   messages: Message[];
-  activeTypers: string[]; // usernames of users currently typing here
-  onSendMessage: (content: string) => void;
+  activeTypers: string[];
+  onSendMessage: (content: string, replyToId?: string, replyToName?: string, replyToContent?: string) => void;
   onSendTypingStatus: (isTyping: boolean) => void;
   onToggleSidebar: () => void;
+  onEditMessage: (id: string, newContent: string) => void;
+  onDeleteMessage: (id: string) => void;
+  onStarMessage: (id: string, isStarred: boolean) => void;
 }
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎉", "🚀", "💡", "👀"];
@@ -29,12 +35,23 @@ export default function ChatWindow({
   activeTypers,
   onSendMessage,
   onSendTypingStatus,
-  onToggleSidebar
+  onToggleSidebar,
+  onEditMessage,
+  onDeleteMessage,
+  onStarMessage
 }: ChatWindowProps) {
   const [inputText, setInputText] = useState("");
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isTypingStateRef = useRef<boolean>(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // States for advanced actions
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [showForwardMessage, setShowForwardMessage] = useState<Message | null>(null);
+  const [showInfoMessage, setShowInfoMessage] = useState<Message | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   // Find info about the target room or user
   const activeRoom = activeChatType === 'room' ? rooms.find((r) => r.id === activeChatId) : null;
@@ -48,7 +65,6 @@ export default function ChatWindow({
     if (activeChatType === 'room') {
       return m.roomId === activeChatId;
     } else {
-      // DM messages between currentUser and selected DM user
       return (
         (m.senderId === currentUser.id && m.receiverId === activeChatId) ||
         (m.senderId === activeChatId && m.receiverId === currentUser.id)
@@ -61,7 +77,7 @@ export default function ChatWindow({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [filteredMessages, activeTypers]);
+  }, [filteredMessages.length, activeTypers.length]);
 
   // Handle typing status throttling
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -77,7 +93,6 @@ export default function ChatWindow({
       onSendTypingStatus(true);
     }
 
-    // Reset keyboard activity timeout
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       isTypingStateRef.current = false;
@@ -97,7 +112,13 @@ export default function ChatWindow({
     const text = inputText.trim();
     if (!text) return;
 
-    onSendMessage(text);
+    if (replyToMessage) {
+      onSendMessage(text, replyToMessage.id, replyToMessage.senderName, replyToMessage.content);
+      setReplyToMessage(null);
+    } else {
+      onSendMessage(text);
+    }
+
     setInputText("");
 
     // Reset height of compose area
@@ -116,7 +137,6 @@ export default function ChatWindow({
 
   const insertEmoji = (emoji: string) => {
     setInputText((prev) => prev + emoji);
-    // Focus and adjust height
     setTimeout(() => {
       const textarea = document.getElementById("compose-textarea") as HTMLTextAreaElement;
       if (textarea) {
@@ -187,6 +207,43 @@ export default function ChatWindow({
     );
   };
 
+  // Actions handlers
+  const handleCopy = (msg: Message) => {
+    navigator.clipboard.writeText(msg.content);
+    setCopiedMessageId(msg.id);
+    setTimeout(() => setCopiedMessageId(null), 2000);
+  };
+
+  const handleStartEdit = (msg: Message) => {
+    setEditingMessageId(msg.id);
+    setEditingText(msg.content);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingMessageId && editingText.trim()) {
+      onEditMessage(editingMessageId, editingText.trim());
+      setEditingMessageId(null);
+    }
+  };
+
+  const handleForward = (recipientId: string, recipientType: 'room' | 'dm') => {
+    if (showForwardMessage) {
+      const content = `[Forwarded] ${showForwardMessage.content}`;
+      if (recipientType === 'room') {
+        onSendMessage(content, undefined, undefined, undefined);
+      } else {
+        // Find if target is registered and map send event
+        const payload = {
+          id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          content,
+          receiverId: recipientId
+        };
+        onSendMessage(content, undefined, undefined, undefined);
+      }
+      setShowForwardMessage(null);
+    }
+  };
+
   return (
     <div id="chat-window-viewport" className="flex-1 bg-[#313338] flex flex-col h-full relative font-sans">
       {/* Header bar */}
@@ -225,7 +282,7 @@ export default function ChatWindow({
             </div>
             <h4 className="text-[#DBDEE1] font-bold text-sm">No Messages Yet</h4>
             <p className="text-[#949BA4] text-xs mt-1.5 leading-relaxed">
-              Be the first to say hello! Your conversation history is cached in local storage for upcoming visits.
+              Be the first to say hello! Your conversation history is cached securely in your Supabase cloud database.
             </p>
           </div>
         ) : (
@@ -238,6 +295,8 @@ export default function ChatWindow({
             const prevDateLabel = prevMsg ? formatDateLabel(prevMsg.timestamp) : "";
             const showDateHeader = currentDateLabel !== prevDateLabel;
 
+            const isEditing = editingMessageId === msg.id;
+
             return (
               <div key={msg.id} className="space-y-4">
                 {showDateHeader && (
@@ -248,7 +307,7 @@ export default function ChatWindow({
                   </div>
                 )}
 
-                <div className={`flex items-start gap-3 group ${isMine ? "flex-row-reverse" : ""}`}>
+                <div className={`flex items-start gap-3 group/msg ${isMine ? "flex-row-reverse" : ""}`}>
                   {/* Sender initials avatar */}
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border border-[#1e1f22]/20 flex-shrink-0 ${
                     isMine ? currentUser.color : msg.senderColor
@@ -256,7 +315,7 @@ export default function ChatWindow({
                     {msg.senderName.substring(0, 2).toUpperCase()}
                   </div>
 
-                  <div className={`max-w-[70%] space-y-1 ${isMine ? "items-end" : ""}`}>
+                  <div className={`max-w-[70%] space-y-1 relative ${isMine ? "items-end" : ""}`}>
                     {/* Header info */}
                     {!isMine && (
                       <div className="flex items-center gap-2 px-1">
@@ -264,21 +323,133 @@ export default function ChatWindow({
                       </div>
                     )}
 
-                    {/* Message Bubble */}
-                    <div className={`px-4.5 py-2.5 text-sm leading-relaxed break-words relative shadow-sm ${
-                      isMine
-                        ? "bg-[#5865F2] text-white rounded-tl-xl rounded-bl-xl rounded-br-xl"
-                        : "bg-[#2B2D31] text-[#DBDEE1] rounded-tr-xl rounded-bl-xl rounded-br-xl"
-                    }`}>
-                      <p>{msg.content}</p>
-
-                      {/* Receipt & Timestamp area */}
-                      <div className={`flex items-center justify-end gap-1.5 mt-1.5 -mb-0.5 text-[10px] select-none ${isMine ? "text-[#E3E5E8]" : "text-[#949BA4]"}`}>
-                        <span>{formatTime(msg.timestamp)}</span>
+                    {/* Message Bubble + Hover Action Buttons */}
+                    <div className="relative group/bubble flex items-center gap-2">
+                      
+                      {/* Hover Actions Menu Bar */}
+                      <div className={`absolute top-[-20px] z-10 hidden group-hover/msg:flex items-center bg-[#2B2D31] border border-[#1E1F22] rounded-lg p-0.5 shadow-md text-[#B5BAC1] ${
+                        isMine ? "left-0" : "right-0"
+                      }`}>
+                        <button 
+                          onClick={() => setReplyToMessage(msg)}
+                          title="Reply"
+                          className="p-1 hover:bg-[#3F4147] hover:text-white rounded transition-all cursor-pointer"
+                        >
+                          <CornerUpLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleCopy(msg)}
+                          title={copiedMessageId === msg.id ? "Copied!" : "Copy"}
+                          className={`p-1 hover:bg-[#3F4147] hover:text-white rounded transition-all cursor-pointer ${
+                            copiedMessageId === msg.id ? "text-emerald-500" : ""
+                          }`}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => setShowForwardMessage(msg)}
+                          title="Forward"
+                          className="p-1 hover:bg-[#3F4147] hover:text-white rounded transition-all cursor-pointer"
+                        >
+                          <Forward className="w-3.5 h-3.5" />
+                        </button>
+                        {isMine && (
+                          <button 
+                            onClick={() => handleStartEdit(msg)}
+                            title="Edit"
+                            className="p-1 hover:bg-[#3F4147] hover:text-white rounded transition-all cursor-pointer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => onStarMessage(msg.id, !msg.isStarred)}
+                          title={msg.isStarred ? "Unstar" : "Star"}
+                          className={`p-1 hover:bg-[#3F4147] hover:text-white rounded transition-all cursor-pointer ${
+                            msg.isStarred ? "text-[#FAA81A]" : ""
+                          }`}
+                        >
+                          <Star className="w-3.5 h-3.5" />
+                        </button>
+                        {isMine && (
+                          <button 
+                            onClick={() => onDeleteMessage(msg.id)}
+                            title="Delete"
+                            className="p-1 hover:bg-[#3F4147] text-rose-500 hover:text-rose-400 rounded transition-all cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {isMine && activeChatType === 'dm' && (
-                          <span className="flex-shrink-0">
-                            {renderReadReceipt(msg.status)}
-                          </span>
+                          <button 
+                            onClick={() => setShowInfoMessage(msg)}
+                            title="Info"
+                            className="p-1 hover:bg-[#3F4147] hover:text-white rounded transition-all cursor-pointer"
+                          >
+                            <Info className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Actual Bubble */}
+                      <div className={`px-4.5 py-2.5 text-sm leading-relaxed break-words relative shadow-sm min-w-[80px] ${
+                        isMine
+                          ? "bg-[#5865F2] text-white rounded-tl-xl rounded-bl-xl rounded-br-xl"
+                          : "bg-[#2B2D31] text-[#DBDEE1] rounded-tr-xl rounded-bl-xl rounded-br-xl"
+                      }`}>
+                        
+                        {/* Starred tag */}
+                        {msg.isStarred && (
+                          <div className="absolute top-1 right-1 flex items-center text-[#FAA81A]">
+                            <Star className="w-2.5 h-2.5 fill-[#FAA81A]" />
+                          </div>
+                        )}
+
+                        {/* Reply tag container */}
+                        {msg.replyToId && (
+                          <div className="mb-2 bg-black/15 border-l-4 border-white/40 p-2 rounded text-xs select-none cursor-pointer flex flex-col gap-0.5 opacity-90">
+                            <span className="font-bold text-white">{msg.replyToName}</span>
+                            <span className="truncate max-w-xs">{msg.replyToContent}</span>
+                          </div>
+                        )}
+
+                        {isEditing ? (
+                          <div className="space-y-2 py-1">
+                            <textarea
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              rows={2}
+                              className="w-full bg-[#1E1F22] border border-[#1e1f22] rounded p-2 text-xs text-[#DBDEE1] focus:outline-none focus:border-[#5865F2] resize-none"
+                            />
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button 
+                                onClick={() => setEditingMessageId(null)}
+                                className="px-2 py-1 bg-[#2B2D31] hover:bg-[#3F4147] text-white text-[10px] font-bold rounded cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button 
+                                onClick={handleSaveEdit}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded cursor-pointer"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p>{msg.content}</p>
+                        )}
+
+                        {/* Receipt & Timestamp area */}
+                        {!isEditing && (
+                          <div className={`flex items-center justify-end gap-1.5 mt-1.5 -mb-0.5 text-[10px] select-none ${isMine ? "text-[#E3E5E8]" : "text-[#949BA4]"}`}>
+                            <span>{formatTime(msg.timestamp)}</span>
+                            {isMine && activeChatType === 'dm' && (
+                              <span className="flex-shrink-0">
+                                {renderReadReceipt(msg.status)}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -322,8 +493,29 @@ export default function ChatWindow({
 
         {/* Dynamic Compose Box */}
         <form onSubmit={handleSend} className="space-y-3">
+          
+          {/* Reply Preview Banner inside composer box */}
+          {replyToMessage && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              className="bg-[#2B2D31] border border-[#1E1F22] rounded-lg p-3 relative flex justify-between items-center text-xs"
+            >
+              <div className="border-l-4 border-[#5865F2] pl-3 overflow-hidden">
+                <p className="font-bold text-[#5865F2] mb-0.5">Replying to {replyToMessage.senderName}</p>
+                <p className="text-[#949BA4] truncate max-w-lg leading-relaxed">{replyToMessage.content}</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setReplyToMessage(null)}
+                className="p-1 hover:bg-[#3F4147] rounded text-[#B5BAC1] hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+
           <div className="flex items-center gap-2.5 relative">
-            {/* Quick action bar */}
             <div className="flex-1 relative flex bg-[#383A40] rounded-lg items-center px-4 py-0.5 border border-[#1e1f22]/5">
               <textarea
                 id="compose-textarea"
@@ -373,6 +565,117 @@ export default function ChatWindow({
           </div>
         </form>
       </div>
+
+      {/* 1. Forward Modal */}
+      <AnimatePresence>
+        {showForwardMessage && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#2B2D31] border border-[#1E1F22] w-full max-w-sm rounded-xl overflow-hidden shadow-2xl"
+            >
+              <div className="p-4 border-b border-[#1E1F22] flex items-center justify-between bg-[#2B2D31]">
+                <h4 className="font-bold text-white text-sm">Forward Message</h4>
+                <button 
+                  onClick={() => setShowForwardMessage(null)}
+                  className="p-1 hover:bg-[#3F4147] rounded text-[#B5BAC1] hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto p-3 space-y-2">
+                <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mb-2 px-1">Channels</p>
+                {rooms.map(r => (
+                  <button 
+                    key={r.id} 
+                    onClick={() => handleForward(r.id, 'room')}
+                    className="w-full text-left p-2.5 hover:bg-[#3F4147] rounded-md text-xs font-semibold text-[#DBDEE1] flex justify-between items-center transition-colors cursor-pointer"
+                  >
+                    <span>#{r.name}</span>
+                    <Forward className="w-3.5 h-3.5 text-[#949BA4]" />
+                  </button>
+                ))}
+
+                <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider pt-3 mb-2 px-1">Colleagues</p>
+                {users.filter(u => u.id !== currentUser.id).map(u => (
+                  <button 
+                    key={u.id} 
+                    onClick={() => handleForward(u.id, 'dm')}
+                    className="w-full text-left p-2.5 hover:bg-[#3F4147] rounded-md text-xs font-semibold text-[#DBDEE1] flex justify-between items-center transition-colors cursor-pointer"
+                  >
+                    <span>{u.username}</span>
+                    <Forward className="w-3.5 h-3.5 text-[#949BA4]" />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. Message Info Modal */}
+      <AnimatePresence>
+        {showInfoMessage && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#2B2D31] border border-[#1E1F22] w-full max-w-sm rounded-xl overflow-hidden shadow-2xl"
+            >
+              <div className="p-4 border-b border-[#1E1F22] flex items-center justify-between bg-[#2B2D31]">
+                <h4 className="font-bold text-white text-sm">Message Info</h4>
+                <button 
+                  onClick={() => setShowInfoMessage(null)}
+                  className="p-1 hover:bg-[#3F4147] rounded text-[#B5BAC1] hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-5">
+                {/* Bubble Preview */}
+                <div className="flex justify-end">
+                  <div className="bg-[#5865F2] text-white p-3 rounded-tl-xl rounded-bl-xl rounded-br-xl text-xs max-w-xs break-words shadow-sm">
+                    {showInfoMessage.content}
+                    <p className="text-[9px] text-[#E3E5E8] text-right mt-1.5 select-none">{formatTime(showInfoMessage.timestamp)}</p>
+                  </div>
+                </div>
+
+                {/* Status Timestamps */}
+                <div className="border-t border-[#1E1F22] pt-4 space-y-4 text-xs font-medium text-[#DBDEE1]">
+                  <div className="flex items-start gap-3">
+                    <CheckCheck className="w-4.5 h-4.5 text-sky-400 stroke-[2.5] mt-0.5" />
+                    <div>
+                      <p className="font-bold">Read</p>
+                      <p className="text-[11px] text-[#949BA4] mt-0.5">
+                        {showInfoMessage.status === 'read' && showInfoMessage.readAt 
+                          ? new Date(showInfoMessage.readAt).toLocaleString() 
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <CheckCheck className="w-4.5 h-4.5 text-zinc-500 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Delivered</p>
+                      <p className="text-[11px] text-[#949BA4] mt-0.5">
+                        {showInfoMessage.deliveredAt 
+                          ? new Date(showInfoMessage.deliveredAt).toLocaleString() 
+                          : new Date(showInfoMessage.timestamp).toLocaleString() /* fallback */}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

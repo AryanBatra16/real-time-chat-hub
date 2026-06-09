@@ -19,6 +19,12 @@ export interface Message {
   timestamp: string; // ISO string
   status: 'sent' | 'delivered' | 'read';
   readBy?: string[]; // List of user IDs who have read this group message
+  replyToId?: string;
+  replyToName?: string;
+  replyToContent?: string;
+  isStarred?: boolean;
+  deliveredAt?: string;
+  readAt?: string;
 }
 
 export interface Room {
