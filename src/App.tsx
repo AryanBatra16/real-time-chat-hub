@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { MessageSquare, ShieldCheck, WifiOff } from "lucide-react";
 
 const MESSAGES_STORAGE_KEY = "chat_hub_messages_v1";
-const STORED_USERNAME_KEY = "chat_hub_remembered_name";
+const STORED_TOKEN_KEY = "chat_hub_jwt_token";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -29,13 +29,12 @@ export default function App() {
   const [infoSidebarOpen, setInfoSidebarOpen] = useState(true);
   
   const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState("");
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
 
-  // 1. Initial State Sync: Load local message history & checked cached user credentials
+  // 1. Initial State Sync: Load local message history
   useEffect(() => {
     try {
       const cachedMessages = localStorage.getItem(MESSAGES_STORAGE_KEY);
@@ -54,12 +53,8 @@ export default function App() {
     }
   }, [messages]);
 
-  // Hook up full Socket.io and lifecycle bindings
-  const setupSocketAndLogin = (username: string) => {
-    setLoginLoading(true);
-    setLoginError("");
-
-    // Create single persistent socket client targeting current base port
+  // Persistent Socket Initialization
+  useEffect(() => {
     const socket = io({
       reconnection: true,
       reconnectionDelay: 1000,
@@ -73,52 +68,44 @@ export default function App() {
       setConnected(true);
       setReconnecting(false);
 
-      // Initialize credentials setup with server
-      socket.emit("user-init", username, (res: {
-        success?: boolean;
-        error?: string;
-        user?: User;
-        users?: User[];
-        rooms?: Room[];
-        history?: Message[];
-      }) => {
-        setLoginLoading(false);
-        if (res.error) {
-          setLoginError(res.error);
-          socket.disconnect();
-          return;
-        }
-
-        if (res.success && res.user) {
-          setCurrentUser(res.user);
-          localStorage.setItem(STORED_USERNAME_KEY, username);
-          
-          if (res.users) setUsers(res.users);
-          if (res.rooms) setRooms(res.rooms);
-          
-          // Seed local messages store with server-side cached items, preserving existing unique messages
-          if (res.history) {
-            setMessages((prev) => {
-              const prevMap = new Map<string, Message>(prev.map(m => [m.id, m]));
-              res.history?.forEach((msg) => {
-                // If it was delivered or read locally, don't overwrite with 'sent' status
-                if (!prevMap.has(msg.id)) {
-                  prevMap.set(msg.id, msg);
-                }
+      // Try automatic token session recovery
+      const cachedToken = localStorage.getItem(STORED_TOKEN_KEY);
+      if (cachedToken) {
+        setLoginLoading(true);
+        socket.emit("user-init-auth", { token: cachedToken }, (res: {
+          success?: boolean;
+          error?: string;
+          user?: User;
+          users?: User[];
+          rooms?: Room[];
+          history?: Message[];
+        }) => {
+          setLoginLoading(false);
+          if (res.success && res.user) {
+            setCurrentUser(res.user);
+            if (res.users) setUsers(res.users);
+            if (res.rooms) setRooms(res.rooms);
+            if (res.history) {
+              setMessages((prev) => {
+                const prevMap = new Map<string, Message>(prev.map(m => [m.id, m]));
+                res.history?.forEach((msg) => {
+                  if (!prevMap.has(msg.id)) prevMap.set(msg.id, msg);
+                });
+                return Array.from(prevMap.values()).sort(
+                  (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                );
               });
-              const combinedList = Array.from(prevMap.values());
-              return combinedList.sort(
-                (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-              );
-            });
+            }
+          } else {
+            // Token expired or invalid, clear from storage
+            localStorage.removeItem(STORED_TOKEN_KEY);
           }
-        }
-      });
+        });
+      }
     });
 
     socket.on("connect_error", () => {
       setLoginLoading(false);
-      setLoginError("Could not establish a connection to WebSocket server.");
     });
 
     socket.on("disconnect", () => {
@@ -129,7 +116,6 @@ export default function App() {
     // Real-Time Event triggers
     socket.on("user-joined", (newUser: User) => {
       setUsers((prev) => {
-        // Idempotency: prevent duplicates
         if (prev.some((u) => u.id === newUser.id)) return prev;
         return [...prev, newUser];
       });
@@ -138,7 +124,6 @@ export default function App() {
     socket.on("user-left", (leftData: { id: string; username: string }) => {
       setUsers((prev) => prev.filter((u) => u.id !== leftData.id));
       
-      // Clean up typing status of deleted user
       setTypingMap((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((k) => {
@@ -152,9 +137,7 @@ export default function App() {
       });
     });
 
-    // Incoming messages
     socket.on("message-receive", (msg: Message) => {
-      // Add message locally safely avoiding duplicates
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg].sort(
@@ -162,7 +145,7 @@ export default function App() {
         );
       });
 
-      // Update unread badges if we are not currently focused on the sender or specific room
+      // Update unread badges
       const isCurrentLocation = 
         (msg.roomId && activeChatType === 'room' && activeChatId === msg.roomId) ||
         (msg.receiverId && !msg.roomId && activeChatType === 'dm' && activeChatId === msg.senderId);
@@ -170,7 +153,6 @@ export default function App() {
       const isMine = msg.senderId === socket.id;
 
       if (!isCurrentLocation && !isMine) {
-        // Trigger unread increment
         const senderKey = msg.roomId ? msg.roomId : msg.senderId;
         setUnreadCounts((prev) => ({
           ...prev,
@@ -178,13 +160,11 @@ export default function App() {
         }));
       }
 
-      // If DM and is current active screen, let's reply back with a read receipt right away!
       if (msg.receiverId && !msg.roomId && isCurrentLocation) {
         socket.emit("mark-as-read", { senderId: msg.senderId });
       }
     });
 
-    // Handle incoming typing triggers
     socket.on("typing-status-update", (payload: { userId: string; username: string; targetId: string; isTyping: boolean }) => {
       setTypingMap((prev) => {
         const targetValue = prev[payload.targetId] || {};
@@ -198,10 +178,7 @@ export default function App() {
       });
     });
 
-    // Received read acknowledgement from DM partner
     socket.on("messages-read-ack", (payload: { readerId: string; senderId: string }) => {
-      // The person who read our messages is readerId.
-      // Filter previous messages where we sent to viewer and change their state to 'read'
       setMessages((prev) =>
         prev.map((m) => {
           if (m.senderId === payload.senderId && m.receiverId === payload.readerId && m.status !== "read") {
@@ -212,18 +189,85 @@ export default function App() {
       );
     });
 
-    // Room created externally
     socket.on("room-created", (newRoom: Room) => {
       setRooms((prev) => {
         if (prev.some((r) => r.id === newRoom.id)) return prev;
         return [...prev, newRoom];
       });
     });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // Submit Login credentials to server via WebSocket
+  const handleLogin = (identifier: string, password: string, callback: (err?: string) => void) => {
+    if (!socketRef.current) return callback("Server not available");
+    setLoginLoading(true);
+
+    socketRef.current.emit("user-login", { identifier, password }, (res: {
+      success?: boolean;
+      error?: string;
+      token?: string;
+      user?: User;
+    }) => {
+      if (res.error) {
+        setLoginLoading(false);
+        callback(res.error);
+        return;
+      }
+
+      if (res.success && res.token && res.user) {
+        localStorage.setItem(STORED_TOKEN_KEY, res.token);
+        
+        // Re-authenticate session setup
+        socketRef.current?.emit("user-init-auth", { token: res.token }, (authRes: {
+          success?: boolean;
+          error?: string;
+          user?: User;
+          users?: User[];
+          rooms?: Room[];
+          history?: Message[];
+        }) => {
+          setLoginLoading(false);
+          if (authRes.error) {
+            callback(authRes.error);
+          } else if (authRes.success && authRes.user) {
+            setCurrentUser(authRes.user);
+            if (authRes.users) setUsers(authRes.users);
+            if (authRes.rooms) setRooms(authRes.rooms);
+            if (authRes.history) {
+              setMessages((prev) => {
+                const prevMap = new Map<string, Message>(prev.map(m => [m.id, m]));
+                authRes.history?.forEach((msg) => {
+                  if (!prevMap.has(msg.id)) prevMap.set(msg.id, msg);
+                });
+                return Array.from(prevMap.values()).sort(
+                  (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                );
+              });
+            }
+            callback();
+          }
+        });
+      }
+    });
   };
 
-  // Run on first login attempts
-  const handleLogin = (username: string) => {
-    setupSocketAndLogin(username);
+  // Submit Registration credentials to server
+  const handleRegister = (username: string, email: string, password: string, callback: (err?: string) => void) => {
+    if (!socketRef.current) return callback("Server not available");
+    setLoginLoading(true);
+
+    socketRef.current.emit("user-register", { username, email, password }, (res: { success?: boolean; error?: string }) => {
+      setLoginLoading(false);
+      if (res.error) {
+        callback(res.error);
+      } else {
+        callback();
+      }
+    });
   };
 
   // Perform message deliveries
@@ -257,7 +301,6 @@ export default function App() {
       socketRef.current.emit("create-room", { name, description }, (res: { success?: boolean; error?: string; room?: Room }) => {
         if (res.success && res.room) {
           setRooms((prev) => [...prev, res.room!]);
-          // Focus on newly spawned channel automatically
           setActiveChatId(res.room.id);
           setActiveChatType("room");
           resolve(true);
@@ -280,11 +323,9 @@ export default function App() {
       return next;
     });
 
-    // If focused chat is a Direct Message, let's mark all its messages as read instantly!
     if (activeChatType === "dm") {
       socketRef.current.emit("mark-as-read", { senderId: activeChatId });
       
-      // Update our local state status for these messages as read as well
       setMessages((prev) =>
         prev.map((m) => {
           if (m.senderId === activeChatId && m.receiverId === currentUser.id && m.status !== "read") {
@@ -302,17 +343,9 @@ export default function App() {
       socketRef.current.disconnect();
     }
     setCurrentUser(null);
-    localStorage.removeItem(STORED_USERNAME_KEY);
+    localStorage.removeItem(STORED_TOKEN_KEY);
     setUsers([]);
   };
-
-  // Try auto-login if they have a remembered name
-  useEffect(() => {
-    const cachedName = localStorage.getItem(STORED_USERNAME_KEY);
-    if (cachedName) {
-      handleLogin(cachedName);
-    }
-  }, []);
 
   // Gather current active screen typers
   const getCurrentActiveTypers = () => {
@@ -329,7 +362,7 @@ export default function App() {
     return (
       <LoginScreen
         onLogin={handleLogin}
-        error={loginError}
+        onRegister={handleRegister}
         loading={loginLoading}
       />
     );
@@ -364,7 +397,6 @@ export default function App() {
             onSelectChat={(id, type) => {
               setActiveChatId(id);
               setActiveChatType(type);
-              // Close on select on smaller screens
               if (window.innerWidth < 768) {
                 setSidebarOpen(false);
               }

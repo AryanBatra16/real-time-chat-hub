@@ -1,6 +1,7 @@
 export interface User {
   id: string; // Socket ID
   username: string;
+  email?: string;
   online: boolean;
   lastSeen?: string;
   avatarUrl: string;

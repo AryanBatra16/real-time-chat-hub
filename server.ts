@@ -2,8 +2,43 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
+import fs from "fs";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { createServer as createViteServer } from "vite";
 import { User, Message, Room } from "./src/types.js";
+
+const USERS_DB_PATH = path.join(process.cwd(), "users-db.json");
+const JWT_SECRET = "chat-hub-secret-key-12345";
+
+interface RegisteredUser {
+  id: string;
+  username: string;
+  email: string;
+  passwordHash: string;
+  color: string;
+  avatarUrl: string;
+}
+
+function loadUsers(): RegisteredUser[] {
+  try {
+    if (fs.existsSync(USERS_DB_PATH)) {
+      const data = fs.readFileSync(USERS_DB_PATH, "utf8");
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error("Error loading users database", e);
+  }
+  return [];
+}
+
+function saveUsers(usersList: RegisteredUser[]) {
+  try {
+    fs.writeFileSync(USERS_DB_PATH, JSON.stringify(usersList, null, 2), "utf8");
+  } catch (e) {
+    console.error("Error saving users database", e);
+  }
+}
 
 // Beautiful Tailwind color pool for assigning to users
 const COLOR_POOL = [
@@ -30,7 +65,7 @@ async function startServer() {
     }
   });
 
-  // Server state
+  // Server state - keeps track of online user sessions
   const users: Map<string, User> = new Map();
   const rooms: Room[] = [
     { id: "general", name: "general", description: "Default channel for greetings and casual chit-chat 👋" },
@@ -51,56 +86,160 @@ async function startServer() {
   io.on("connection", (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    // Create unique random user attributes but wait for registration
-    socket.on("user-init", (username: string, callback) => {
-      if (!username || typeof username !== "string" || username.trim() === "") {
-        return callback({ error: "Username cannot be empty" });
+    // Registration Handler
+    socket.on("user-register", async (payload: { username: string; email: string; password?: string }, callback) => {
+      const { username, email, password } = payload;
+      if (!username || !email || !password) {
+        return callback({ error: "All fields are required" });
       }
 
-      const trimmedName = username.trim().substring(0, 20);
-      const isNameTaken = Array.from(users.values()).some(
-        (u) => u.username.toLowerCase() === trimmedName.toLowerCase()
-      );
+      const trimmedName = username.trim();
+      const trimmedEmail = email.trim().toLowerCase();
 
-      if (isNameTaken) {
+      // Simple validation checks
+      if (trimmedName.length < 2 || trimmedName.length > 24 || !/^[a-zA-Z0-9 _]+$/.test(trimmedName)) {
+        return callback({ error: "Invalid username pattern" });
+      }
+
+      const usersList = loadUsers();
+      const nameConflict = usersList.some(u => u.username.toLowerCase() === trimmedName.toLowerCase());
+      const emailConflict = usersList.some(u => u.email.toLowerCase() === trimmedEmail);
+
+      if (nameConflict) {
         return callback({ error: "Username is already taken" });
       }
+      if (emailConflict) {
+        return callback({ error: "Email is already registered" });
+      }
 
-      // Generate visual attributes
-      const randomColor = COLOR_POOL[Math.floor(Math.random() * COLOR_POOL.length)];
-      // Initial letters avatar
-      const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trimmedName)}`;
+      try {
+        const passwordHash = await bcrypt.hash(password, 10);
+        const randomColor = COLOR_POOL[Math.floor(Math.random() * COLOR_POOL.length)];
+        const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(trimmedName)}`;
+        
+        const newRegUser: RegisteredUser = {
+          id: `u-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          username: trimmedName,
+          email: trimmedEmail,
+          passwordHash,
+          color: randomColor,
+          avatarUrl
+        };
 
-      const user: User = {
-        id: socket.id,
-        username: trimmedName,
-        online: true,
-        avatarUrl,
-        color: randomColor
-      };
+        usersList.push(newRegUser);
+        saveUsers(usersList);
 
-      // Add to server memory
-      users.set(socket.id, user);
+        callback({ success: true });
+      } catch (err) {
+        callback({ error: "Registration failed due to server error" });
+      }
+    });
 
-      // Join standard rooms automatically
-      rooms.forEach((r) => {
-        socket.join(r.id);
-      });
+    // Login Handler
+    socket.on("user-login", async (payload: { identifier?: string; password?: string }, callback) => {
+      const { identifier, password } = payload;
+      if (!identifier || !password) {
+        return callback({ error: "All fields are required" });
+      }
 
-      // Filter global message cache for rooms the user has joined to send as initial history
-      const relevantHistory = messageCache.filter((m) => m.roomId);
+      const trimmedIdentifier = identifier.trim().toLowerCase();
+      const usersList = loadUsers();
 
-      // Reply with success packet
-      callback({
-        success: true,
-        user,
-        users: Array.from(users.values()),
-        rooms,
-        history: relevantHistory
-      });
+      const matchedUser = usersList.find(
+        u => u.username.toLowerCase() === trimmedIdentifier || u.email.toLowerCase() === trimmedIdentifier
+      );
 
-      // Broadcast join event to all other clients
-      socket.broadcast.emit("user-joined", user);
+      if (!matchedUser) {
+        return callback({ error: "Invalid username/email or password" });
+      }
+
+      try {
+        const isMatch = await bcrypt.compare(password, matchedUser.passwordHash);
+        if (!isMatch) {
+          return callback({ error: "Invalid username/email or password" });
+        }
+
+        // Generate JWT Token
+        const token = jwt.sign(
+          { userId: matchedUser.id, username: matchedUser.username },
+          JWT_SECRET,
+          { expiresIn: "7d" }
+        );
+
+        callback({
+          success: true,
+          token,
+          user: {
+            id: matchedUser.id,
+            username: matchedUser.username,
+            email: matchedUser.email,
+            online: true,
+            avatarUrl: matchedUser.avatarUrl,
+            color: matchedUser.color
+          }
+        });
+      } catch (err) {
+        callback({ error: "Login failed due to server error" });
+      }
+    });
+
+    // Token-based Session Initialization Handler
+    socket.on("user-init-auth", (payload: { token?: string }, callback) => {
+      const { token } = payload;
+      if (!token) {
+        return callback({ error: "Authentication token is required" });
+      }
+
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; username: string };
+        const usersList = loadUsers();
+        const dbUser = usersList.find(u => u.id === decoded.userId);
+
+        if (!dbUser) {
+          return callback({ error: "Authenticated user no longer exists" });
+        }
+
+        // Check if user is already marked online elsewhere and disconnect old socket if needed
+        for (const [sid, u] of users.entries()) {
+          if (u.id === dbUser.id) {
+            io.sockets.sockets.get(sid)?.disconnect();
+            users.delete(sid);
+          }
+        }
+
+        const user: User = {
+          id: socket.id, // Keep socket.id for real-time delivery routing compatibility
+          username: dbUser.username,
+          email: dbUser.email,
+          online: true,
+          avatarUrl: dbUser.avatarUrl,
+          color: dbUser.color
+        };
+
+        // Add to online store
+        users.set(socket.id, user);
+
+        // Join standard rooms
+        rooms.forEach((r) => {
+          socket.join(r.id);
+        });
+
+        const relevantHistory = messageCache.filter((m) => m.roomId);
+
+        callback({
+          success: true,
+          user,
+          users: Array.from(users.values()),
+          rooms,
+          history: relevantHistory
+        });
+
+        // Broadcast join event
+        socket.broadcast.emit("user-joined", user);
+        console.log(`User authenticated: ${user.username} (${user.id})`);
+      } catch (err) {
+        callback({ error: "Session expired or invalid token" });
+      }
     });
 
     // Handle messages
