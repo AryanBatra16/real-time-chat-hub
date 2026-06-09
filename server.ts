@@ -304,7 +304,8 @@ async function startServer() {
 
       // Persist to Supabase
       try {
-        await supabase
+        console.log(`[DB] Attempting to persist message from ${message.senderName}: "${message.content}"`);
+        const { error: dbErr } = await supabase
           .from("messages")
           .insert({
             id: message.id,
@@ -318,8 +319,13 @@ async function startServer() {
             status: message.status,
             read_by: []
           });
+        if (dbErr) {
+          console.error("[DB Error] Failed to persist message in Supabase:", dbErr);
+        } else {
+          console.log("[DB] Message persisted successfully");
+        }
       } catch (e) {
-        console.error("Error persisting message to Supabase", e);
+        console.error("Error persisting message to Supabase (Exception):", e);
       }
 
       // Dispatch to room or receivers
