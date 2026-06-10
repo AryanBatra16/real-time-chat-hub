@@ -18,6 +18,11 @@ const MEMORABLE_NAMES = [
 ];
 
 export default function LoginScreen({ onLogin, onRegister, loading }: LoginScreenProps) {
+  // Force scroll to top on mount
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, []);
+
   // Navigation & interaction states
   const [showLoginSection, setShowLoginSection] = useState(false);
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');

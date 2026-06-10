@@ -10,6 +10,11 @@ interface LandingPageProps {
 }
 
 export default function LandingPage({ onLaunch }: LandingPageProps) {
+  // Force scroll to top on mount
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, []);
+
   // Mouse tilt animation coordinates for the 3D showcase card
   const x = useMotionValue(0);
   const y = useMotionValue(0);
