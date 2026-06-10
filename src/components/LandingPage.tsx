@@ -52,7 +52,7 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
             <MessageSquare className="w-5 h-5 text-white" />
           </div>
           <span className="font-bold text-lg text-white tracking-tight flex items-center gap-1.5">
-            Real-Time Chat <span className="text-[#5865F2]">Hub</span>
+            Collab<span className="text-[#5865F2]">Space</span>
           </span>
         </div>
 
@@ -333,7 +333,7 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
             <span>Secure connection to the workspace is active.</span>
           </div>
           <div>
-            <span>© {new Date().getFullYear()} Real-Time Chat Hub. Secure cloud integration enabled.</span>
+            <span>© {new Date().getFullYear()} CollabSpace. Secure cloud integration enabled.</span>
           </div>
         </div>
       </footer>

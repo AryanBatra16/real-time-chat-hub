@@ -70,7 +70,7 @@ export default function RoomSidebar({
     <aside id="room-sidebar-container" className="w-68 bg-[#2B2D31] border-r border-[#1e1f22] flex flex-col h-full flex-shrink-0">
       {/* Sleek Header Title */}
       <header className="h-12 px-4 shadow-sm border-b border-[#1e1f22] flex items-center justify-between flex-shrink-0 bg-[#2B2D31]">
-        <span className="font-bold text-white tracking-tight text-sm">Real-Time Chat Hub</span>
+        <span className="font-bold text-white tracking-tight text-sm">CollabSpace</span>
       </header>
 
       {/* Sidebar Content */}

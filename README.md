@@ -1,4 +1,4 @@
-# Real-Time Chat Hub 💬
+# CollabSpace 💬
 
 A modern, high-performance real-time chat application with a sleek dark theme. This application supports multi-user group chat rooms and private direct messaging, powered by a Node.js + Socket.IO server and Supabase for secure user authentication and message persistence.
 
@@ -6,7 +6,7 @@ A modern, high-performance real-time chat application with a sleek dark theme. T
 
 ## Project Overview
 
-Real-Time Chat Hub provides a premium chat experience similar to Discord or WhatsApp. It is designed to run locally or in production as a full-stack application, where client-side assets are served directly from the Express server. It bridges the gap between stateful real-time WebSockets and persistent database storage by using Supabase to save user profiles and chat history securely, ensuring data is never lost across server restarts or page refreshes.
+CollabSpace provides a premium chat experience similar to Discord or WhatsApp. It is designed to run locally or in production as a full-stack application, where client-side assets are served directly from the Express server. It bridges the gap between stateful real-time WebSockets and persistent database storage by using Supabase to save user profiles and chat history securely, ensuring data is never lost across server restarts or page refreshes.
 
 ---
 
