@@ -15,6 +15,9 @@ const STORED_TOKEN_KEY = "chat_hub_jwt_token";
 export default function App() {
   const [showLanding, setShowLanding] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [restoringSession, setRestoringSession] = useState(() => {
+    return !!localStorage.getItem(STORED_TOKEN_KEY);
+  });
   const [users, setUsers] = useState<User[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -46,6 +49,17 @@ export default function App() {
     activeChatTypeRef.current = activeChatType;
     currentUserRef.current = currentUser;
   }, [activeChatId, activeChatType, currentUser]);
+
+  // Safety timeout fallback for restoring session to prevent blank loading screens
+  useEffect(() => {
+    if (restoringSession) {
+      const timer = setTimeout(() => {
+        setRestoringSession(false);
+        setShowLanding(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [restoringSession]);
 
   // Trigger relative time recalculation every 60s
   useEffect(() => {
@@ -93,6 +107,7 @@ export default function App() {
       const cachedToken = localStorage.getItem(STORED_TOKEN_KEY);
       if (cachedToken) {
         setLoginLoading(true);
+        setRestoringSession(true);
         socket.emit("user-init-auth", { token: cachedToken }, (res: {
           success?: boolean;
           error?: string;
@@ -102,8 +117,10 @@ export default function App() {
           history?: Message[];
         }) => {
           setLoginLoading(false);
+          setRestoringSession(false);
           if (res.success && res.user) {
             setCurrentUser(res.user);
+            setShowLanding(false);
             if (res.users) setUsers(res.users);
             if (res.rooms) setRooms(res.rooms);
             if (res.history) {
@@ -120,13 +137,17 @@ export default function App() {
           } else {
             // Token expired or invalid, clear from storage
             localStorage.removeItem(STORED_TOKEN_KEY);
+            setShowLanding(true);
           }
         });
+      } else {
+        setRestoringSession(false);
       }
     });
 
     socket.on("connect_error", () => {
       setLoginLoading(false);
+      setRestoringSession(false);
     });
 
     socket.on("disconnect", () => {
@@ -414,6 +435,27 @@ export default function App() {
         return matchingUser ? matchingUser.username : "Someone";
       });
   };
+
+  if (restoringSession) {
+    return (
+      <div className="h-screen w-screen bg-[#1E1F22] flex flex-col items-center justify-center select-none font-sans">
+        <div className="relative flex flex-col items-center gap-6">
+          <div className="relative w-16 h-16 flex items-center justify-center">
+            <img 
+              src="/collabspace_logo.png" 
+              alt="CollabSpace Logo" 
+              className="w-16 h-16 object-contain rounded-2xl shadow-xl shadow-[#5865F2]/20 animate-pulse" 
+            />
+            <div className="absolute inset-0 border-2 border-[#5865F2] border-t-transparent rounded-2xl animate-spin" />
+          </div>
+          <div className="text-center space-y-1.5">
+            <h3 className="text-white font-bold text-sm tracking-wide">Restoring Session</h3>
+            <p className="text-[#949BA4] text-xs font-medium">Synchronizing workspace details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (showLanding && !currentUser) {
     return <LandingPage onLaunch={() => setShowLanding(false)} />;

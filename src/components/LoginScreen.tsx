@@ -152,9 +152,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
       {/* Styled Glass Navigation Bar */}
       <header className="sticky top-0 z-50 bg-[#1E1F22]/70 backdrop-blur-md border-b border-[#2B2D31]/40 h-16 px-6 lg:px-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-[#5865F2] p-2 rounded-[10px] shadow-lg shadow-[#5865F2]/20 flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-white" />
-          </div>
+          <img src="/collabspace_logo.png" alt="CollabSpace Logo" className="w-12 h-12 object-contain rounded-xl shadow-lg shadow-[#5865F2]/25" />
           <span className="font-bold text-lg text-white tracking-tight flex items-center gap-1.5">
             Collab<span className="text-[#5865F2]">Space</span>
           </span>

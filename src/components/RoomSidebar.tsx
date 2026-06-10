@@ -69,8 +69,9 @@ export default function RoomSidebar({
   return (
     <aside id="room-sidebar-container" className="w-68 bg-[#2B2D31] border-r border-[#1e1f22] flex flex-col h-full flex-shrink-0">
       {/* Sleek Header Title */}
-      <header className="h-12 px-4 shadow-sm border-b border-[#1e1f22] flex items-center justify-between flex-shrink-0 bg-[#2B2D31]">
-        <span className="font-bold text-white tracking-tight text-sm">CollabSpace</span>
+      <header className="h-12 px-3 shadow-sm border-b border-[#1e1f22] flex items-center gap-2.5 flex-shrink-0 bg-[#2B2D31]">
+        <img src="/collabspace_logo.png" alt="Logo" className="w-8 h-8 object-contain rounded-lg shadow-sm shadow-[#5865F2]/10" />
+        <span className="font-bold text-white tracking-tight text-base">CollabSpace</span>
       </header>
 
       {/* Sidebar Content */}

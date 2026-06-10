@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { formatLastSeen } from "../utils/formatTime";
+import EmojiPicker, { Theme, EmojiStyle } from "emoji-picker-react";
 
 interface ChatWindowProps {
   currentUser: User;
@@ -25,58 +26,7 @@ interface ChatWindowProps {
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎉", "🚀", "💡", "👀"];
 
-const EMOJI_CATEGORIES = [
-  {
-    name: "Smileys & People",
-    icon: "😀",
-    emojis: [
-      "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", 
-      "😋", "😛", "😝", "😜", "🤪", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "🥺", "😢", "😭", 
-      "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", 
-      "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😴", "🥱", "🤮", "🤢", "😷", "🤒", "🤕", "🤠", "😈", 
-      "👿", "💀", "👻", "👽", "👾", "🤖", "💩", "👋", "🤚", "🖐️", "✋", "🖖", "👌", "🤏", "✌️", "🤞", 
-      "🤟", "🤘", "🤙", "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎", "✊", "👊", "👏", "🙌", "👐", 
-      "🤲", "🤝", "🙏", "💪", "🧠", "👀", "👄", "💋"
-    ]
-  },
-  {
-    name: "Animals & Nature",
-    icon: "🌲",
-    emojis: [
-      "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐒", 
-      "🐔", "🐧", "🐦", "🐤", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋", "🐌", 
-      "🐞", "🐜", "🕷️", "🦂", "🐢", "🐍", "🦎", "🐙", "🦑", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🦈", 
-      "🐊", "🐅", "🐆", "🦓", "🦍", "🐘", "🐪", "🦒", "🦘", "🐂", "🐈", "🌲", "🌳", "🌴", "🌵", "🌿", "🍀", 
-      "🍁", "🍂", "🍃", "🍄", "🌹", "🥀", "🌺", "🌸", "🌼", "🌻", "🌞", "🌝", "🌙", "💫", "⭐️", "🌟", 
-      "✨", "⚡️", "🔥", "🌈", "☀️", "☁️", "🌧️", "❄️", "🌊"
-    ]
-  },
-  {
-    name: "Food & Drink",
-    icon: "🍔",
-    emojis: [
-      "🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅", 
-      "🍆", "🥑", "🥦", "🥬", "🥒", "🌶️", "🌽", "🥕", "🥔", "🥐", "🍞", "🧀", "🥚", "🍳", "🥞", "🥓", 
-      "🥩", "🍗", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🥗", "🥘", "🍝", "🍜", "🍲", "🍛", "🍣", 
-      "🥟", "🍤", "🍙", "🍰", "🎂", "🧁", "🥧", "🍫", "🍬", "🍭", "🍮", "🍯", "🥛", "☕️", "🍵", "🍶", 
-      "🍷", "🍸", "🍹", "🍺", "🍻", "🥤"
-    ]
-  },
-  {
-    name: "Activities & Symbols",
-    icon: "⚽",
-    emojis: [
-      "⚽️", "🏀", "🏈", "⚾️", "🥎", "🎾", "🏐", "🎱", "🏓", "🏸", "🏒", "⛳️", "🏹", "🎣", 
-      "🥊", "🥋", "🛹", "⛸️", "🏋️‍♀️", "🚴‍♂️", "🏆", "🥇", "🎫", "🎟️", "🎭", "🎨", "🎬", "🎤", "🎧", 
-      "🎼", "🎹", "🥁", "🎸", "🎮", "🕹️", "🎲", "🧩", "♟️", "🚗", "🚓", "🚑", "🚒", "🏍️", "🚨", "✈️", 
-      "🚀", "🛸", "⌚️", "📱", "💻", "⌨️", "🖥️", "🖨️", "🎥", "📺", "📷", "🎙️", "🎚️", "🎛️", "⏱️", 
-      "⏳", "💡", "🔦", "🕯️", "💵", "🪙", "✉️", "📦", "✏️", "✒️", "🗒️", "📁", "📂", "💼", "📅", 
-      "🗑️", "🔒", "🔓", "🔑", "🛠️", "⚙️", "🛡️", "🩹", "🧪", "🧬", "🔭", "📡", "❤️", "🧡", "💛", 
-      "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", 
-      "💟", "✔️", "❌", "➕", "➖", "➗", "❓", "❗️", "🏁", "🚩"
-    ]
-  }
-];
+// EMOJI_CATEGORIES removed in favor of emoji-picker-react
 
 export default function ChatWindow({
   currentUser,
@@ -108,12 +58,15 @@ export default function ChatWindow({
 
   // Emoji Picker states
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [activeCategory, setActiveCategory] = useState(0);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
 
   // Close emoji picker when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const toggleBtn = document.getElementById("emoji-picker-toggle-btn");
+      if (toggleBtn && toggleBtn.contains(event.target as Node)) {
+        return;
+      }
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
         setShowEmojiPicker(false);
       }
@@ -613,6 +566,7 @@ export default function ChatWindow({
               <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center text-[#B5BAC1]">
                 <div className="relative flex items-center">
                   <button
+                    id="emoji-picker-toggle-btn"
                     type="button"
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                     className="p-1 hover:bg-[#3F4147] rounded-md transition-all cursor-pointer text-[#949BA4] hover:text-white flex items-center justify-center"
@@ -624,43 +578,17 @@ export default function ChatWindow({
                   {showEmojiPicker && (
                     <div 
                       ref={emojiPickerRef}
-                      className="absolute bottom-10 right-0 z-50 w-72 h-80 bg-[#2B2D31] border border-[#1E1F22] rounded-xl shadow-2xl flex flex-col overflow-hidden text-left"
+                      className="absolute bottom-12 right-0 z-50 shadow-2xl rounded-xl overflow-hidden border border-[#1e1f22]"
                     >
-                      {/* Picker Tabs */}
-                      <div className="flex bg-[#1E1F22] border-b border-[#1E1F22] p-1.5 justify-around flex-shrink-0">
-                        {EMOJI_CATEGORIES.map((cat, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => setActiveCategory(idx)}
-                            title={cat.name}
-                            className={`p-1.5 text-base rounded hover:bg-[#2B2D31] transition-colors cursor-pointer flex-shrink-0 ${
-                              activeCategory === idx ? "bg-[#2B2D31]" : ""
-                            }`}
-                          >
-                            {cat.icon}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Picker Content list */}
-                      <div className="flex-1 overflow-y-auto p-2.5 grid grid-cols-7 gap-1.5">
-                        {EMOJI_CATEGORIES[activeCategory].emojis.map((emoji, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => handleSelectEmoji(emoji)}
-                            className="w-8 h-8 flex items-center justify-center text-lg hover:bg-[#3F4147] rounded transition-all cursor-pointer active:scale-95"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Picker footer displaying category name */}
-                      <div className="bg-[#1E1F22] px-3 py-1.5 text-[10px] text-[#949BA4] font-bold uppercase tracking-wider flex-shrink-0 border-t border-[#1E1F22]">
-                        {EMOJI_CATEGORIES[activeCategory].name}
-                      </div>
+                      <EmojiPicker
+                        theme={Theme.DARK}
+                        emojiStyle={EmojiStyle.NATIVE}
+                        onEmojiClick={(emojiData) => handleSelectEmoji(emojiData.emoji)}
+                        height={380}
+                        width={300}
+                        lazyLoadEmojis={true}
+                        searchPlaceHolder="Search emojis..."
+                      />
                     </div>
                   )}
                 </div>
