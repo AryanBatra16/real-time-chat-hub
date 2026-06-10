@@ -80,6 +80,27 @@ async function startServer() {
       }
 
       try {
+        // 0. Pre-validate username and email uniqueness in Profiles table
+        const { data: existingUser } = await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("username", trimmedName)
+          .maybeSingle();
+
+        if (existingUser) {
+          return callback({ error: "Username is already taken." });
+        }
+
+        const { data: existingEmail } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("email", trimmedEmail)
+          .maybeSingle();
+
+        if (existingEmail) {
+          return callback({ error: "Email is already registered." });
+        }
+
         // 1. Sign up user in Supabase Auth
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: trimmedEmail,
