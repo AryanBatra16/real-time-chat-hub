@@ -511,7 +511,7 @@ async function startServer() {
       const sender = users.get(socket.id);
       if (!sender) return callback({ error: "Not authorized" });
 
-      const nameNormalized = payload.name.trim().toLowerCase().replace(/\s+/g, "-").substring(0, 30);
+      const nameNormalized = payload.name.trim().toLowerCase().replace(/^#+/, "").replace(/\s+/g, "-").substring(0, 30);
       
       const alreadyExists = rooms.some((r) => r.id === nameNormalized);
       if (alreadyExists) {

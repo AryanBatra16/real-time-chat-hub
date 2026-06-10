@@ -108,7 +108,7 @@ export default function RoomSidebar({
                     type="text"
                     placeholder="room-name (no spaces)"
                     value={newRoomName}
-                    onChange={(e) => setNewRoomName(e.target.value.toLowerCase())}
+                    onChange={(e) => setNewRoomName(e.target.value.toLowerCase().replace(/^#+/, ""))}
                     maxLength={20}
                     className="w-full bg-[#2B2D31] border border-[#1e1f22] rounded py-1.5 px-3 text-xs text-[#DBDEE1] placeholder-zinc-650 focus:outline-none focus:border-[#5865F2]"
                   />
