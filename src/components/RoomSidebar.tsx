@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { User, Room } from "../types";
-import { Hash, MessageSquare, Plus, Check, X, ShieldAlert, LogOut, Search } from "lucide-react";
+import { Hash, MessageSquare, Plus, Check, X, ShieldAlert, LogOut, Search, UserPlus, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { formatLastSeen } from "../utils/formatTime";
 
@@ -13,6 +13,8 @@ interface RoomSidebarProps {
   unreadCounts: Record<string, number>;
   onSelectChat: (id: string, type: 'room' | 'dm') => void;
   onCreateRoom: (name: string, description: string) => Promise<boolean>;
+  onAddMembers: (roomId: string) => void;
+  onDeleteRoom: (roomId: string) => void;
   onLogout: () => void;
 }
 
@@ -25,6 +27,7 @@ export default function RoomSidebar({
   unreadCounts,
   onSelectChat,
   onCreateRoom,
+  onAddMembers,
   onLogout
 }: RoomSidebarProps) {
   const [isCreating, setIsCreating] = useState(false);
@@ -170,6 +173,16 @@ export default function RoomSidebar({
                       {unread}
                     </span>
                   )}
+                  <div className="flex items-center gap-1 ml-2">
+                    <UserPlus
+                      className="w-4 h-4 text-[#949BA4] hover:text-white"
+                      onClick={(e) => { e.stopPropagation(); onAddMembers(room.id); }}
+                    />
+                    <Trash2
+                      className="w-4 h-4 text-[#F23F43] hover:text-white"
+                      onClick={(e) => { e.stopPropagation(); onDeleteRoom(room.id); }}
+                    />
+                  </div>
                 </button>
               );
             })}

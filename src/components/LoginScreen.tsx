@@ -111,8 +111,9 @@ export default function LoginScreen({ onLogin, onRegister, loading, onBack }: Lo
       return;
     }
 
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setLocalError("Please enter a valid email address.");
+
+    if (!/.+@.+/.test(email)) {
+      setLocalError("Email must contain '@' with text before and after it (e.g. user@example).");
       return;
     }
 
@@ -596,7 +597,7 @@ export default function LoginScreen({ onLogin, onRegister, loading, onBack }: Lo
                     </label>
                     <input
                       id="reg-email"
-                      type="email"
+                      type="text"
                       placeholder="you@example.com"
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}

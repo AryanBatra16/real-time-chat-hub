@@ -51,6 +51,11 @@ async function startServer() {
     { id: "random", name: "random", description: "Lounge for random memes, links, and everything else ⚡" },
     { id: "music-lounge", name: "music-lounge", description: "Share your daily tunes, beats, and atmospheric synths 🎵" }
   ];
+
+  // In‑memory mapping of roomId -> Set of member userIds (including the creator)
+  const roomMembers: Map<string, Set<string>> = new Map();
+  // Initialise each existing room with an empty member set (will be populated on join)
+  rooms.forEach((r) => roomMembers.set(r.id, new Set()));
   
   // In-memory message history (latest 50 messages per room/DM)
   const messageCache: Message[] = [];
@@ -520,16 +525,89 @@ async function startServer() {
       };
 
       rooms.push(newRoom);
+      // Initialise member set for the new room and add creator automatically
+      const membersSet = new Set<string>();
+      membersSet.add(sender.id);
+      roomMembers.set(newRoom.id, membersSet);
       
-      // Auto-join all currently active sockets to the new room channel
+      // Auto‑join all currently active sockets to the new room channel (including creator)
       io.sockets.sockets.forEach((s) => {
         s.join(nameNormalized);
       });
+      // Add creator's socket to members set (already added above)
       
       io.emit("room-created", newRoom);
       callback({ success: true, room: newRoom });
     });
 
+    // Fetch ALL registered users from database (online + offline)
+    socket.on("get-all-users", async (_, callback) => {
+      const requester = users.get(socket.id);
+      if (!requester) return callback({ error: "Not authorized" });
+
+      try {
+        const { data: profiles, error } = await supabase
+          .from("profiles")
+          .select("id, username, email, avatar_url, color")
+          .order("username", { ascending: true });
+
+        if (error || !profiles) {
+          return callback({ error: "Failed to fetch users" });
+        }
+
+        const onlineIds = new Set(Array.from(users.values()).map(u => u.id));
+
+        const allUsers = profiles.map(p => ({
+          id: p.id,
+          username: p.username,
+          email: p.email,
+          avatarUrl: p.avatar_url,
+          color: p.color,
+          online: onlineIds.has(p.id)
+        }));
+
+        callback({ success: true, users: allUsers });
+      } catch (e) {
+        callback({ error: "Server error fetching users" });
+      }
+    });
+
+    // Add users to a room (invite)
+
+    socket.on("add-to-room", async (payload: { roomId: string; userId: string }, callback) => {
+      const { roomId, userId } = payload;
+      const room = rooms.find((r) => r.id === roomId);
+      if (!room) return callback({ error: "Room not found" });
+      const members = roomMembers.get(roomId);
+      if (!members) return callback({ error: "Room members not initialized" });
+      members.add(userId);
+      // Notify all members of updated list
+      io.to(roomId).emit("room-members-updated", { roomId, members: Array.from(members) });
+      callback({ success: true });
+    });
+
+    // Remove a user from a room
+    socket.on("remove-from-room", async (payload: { roomId: string; userId: string }, callback) => {
+      const { roomId, userId } = payload;
+      const members = roomMembers.get(roomId);
+      if (!members) return callback({ error: "Room not found" });
+      members.delete(userId);
+      io.to(roomId).emit("room-members-updated", { roomId, members: Array.from(members) });
+      callback({ success: true });
+    });
+
+    // Delete an entire room
+    socket.on("delete-room", async (payload: { roomId: string }, callback) => {
+      const { roomId } = payload;
+      const idx = rooms.findIndex((r) => r.id === roomId);
+      if (idx === -1) return callback({ error: "Room not found" });
+      rooms.splice(idx, 1);
+      roomMembers.delete(roomId);
+      // Force all sockets to leave the room
+      io.sockets.sockets.forEach((s) => s.leave(roomId));
+      io.emit("room-deleted", { roomId });
+      callback({ success: true });
+    });
     // Handle disconnects
     socket.on("disconnect", () => {
       const user = users.get(socket.id);

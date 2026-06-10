@@ -8,6 +8,7 @@ import ChatWindow from "./components/ChatWindow";
 import InfoSidebar from "./components/InfoSidebar";
 import { motion, AnimatePresence } from "motion/react";
 import { MessageSquare, ShieldCheck, WifiOff } from "lucide-react";
+import MemberModal from "./components/MemberModal";
 import NotFound from "./components/NotFound";
 
 const MESSAGES_STORAGE_KEY = "chat_hub_messages_v1";
@@ -38,6 +39,12 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const [timeTick, setTimeTick] = useState(0);
+
+  // Member modal state
+  const [memberModalOpen, setMemberModalOpen] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('');
+  const [roomMembers, setRoomMembers] = useState<Record<string, string[]>>({});
+  const [allDbUsers, setAllDbUsers] = useState<User[]>([]);
 
   // Client-side lightweight routing state
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
@@ -327,6 +334,30 @@ export default function App() {
         if (prev.some((r) => r.id === newRoom.id)) return prev;
         return [...prev, newRoom];
       });
+      // Initialise empty members list for the new room
+      setRoomMembers((prev) => ({ ...prev, [newRoom.id]: [] }));
+    });
+
+    // Receive updated member list for a room
+    socket.on("room-members-updated", ({ roomId, members }: { roomId: string; members: string[] }) => {
+      setRoomMembers((prev) => ({ ...prev, [roomId]: members }));
+    });
+
+    // Room deleted by another user
+    socket.on("room-deleted", ({ roomId }: { roomId: string }) => {
+      setRooms((prev) => prev.filter((r) => r.id !== roomId));
+      setRoomMembers((prev) => {
+        const copy = { ...prev };
+        delete copy[roomId];
+        return copy;
+      });
+      if (activeChatIdRef.current === roomId) {
+        // fallback to general channel when the current room disappears
+        setActiveChatId("general");
+        setActiveChatType("room");
+        window.history.pushState(null, "", "/channels/general");
+        setCurrentPath("/channels/general");
+      }
     });
 
     return () => {
@@ -432,12 +463,44 @@ export default function App() {
     socketRef.current?.emit("star-message", { id, isStarred });
   };
 
-  // Handle typing statuses broadcast
   const handleSendTypingStatus = (isTyping: boolean) => {
     if (!socketRef.current) return;
     socketRef.current.emit("typing-status", {
       targetId: activeChatId,
       isTyping
+    });
+  };
+
+  // Member modal handlers
+  const openMemberModal = (roomId: string) => {
+    setSelectedRoomId(roomId);
+    setMemberModalOpen(true);
+    // Fetch ALL users from the database (online + offline)
+    if (socketRef.current) {
+      socketRef.current.emit('get-all-users', {}, (res: { success?: boolean; users?: User[]; error?: string }) => {
+        if (res.success && res.users) {
+          setAllDbUsers(res.users);
+        }
+      });
+    }
+  };
+
+  const closeMemberModal = () => {
+    setMemberModalOpen(false);
+    setSelectedRoomId('');
+  };
+
+  const handleAddMember = (roomId: string, userId: string) => {
+    if (!socketRef.current) return;
+    socketRef.current.emit('add-to-room', { roomId, userId }, (res: any) => {
+      if (res?.error) console.error('Add member error:', res.error);
+    });
+  };
+
+  const handleRemoveMember = (roomId: string, userId: string) => {
+    if (!socketRef.current) return;
+    socketRef.current.emit('remove-from-room', { roomId, userId }, (res: any) => {
+      if (res?.error) console.error('Remove member error:', res.error);
     });
   };
 
@@ -448,7 +511,8 @@ export default function App() {
 
       socketRef.current.emit("create-room", { name, description }, (res: { success?: boolean; error?: string; room?: Room }) => {
         if (res.success && res.room) {
-          setRooms((prev) => [...prev, res.room!]);
+          // Don't setRooms here — the "room-created" socket event handles it for all clients
+          // including the creator, with built-in dedup
           setActiveChatId(res.room.id);
           setActiveChatType("room");
           const path = `/channels/${res.room.id}`;
@@ -563,6 +627,39 @@ export default function App() {
     );
   }
 
+  const handleSelectChat = (id: string, type: 'room' | 'dm') => {
+    setActiveChatId(id);
+    setActiveChatType(type);
+    const path = type === 'room' ? `/channels/${id}` : `/dm/${id}`;
+    window.history.pushState(null, "", path);
+    setCurrentPath(path);
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
+  const handleAddMembers = (roomId: string) => {
+    openMemberModal(roomId);
+  };
+
+  const handleDeleteRoom = (roomId: string) => {
+    if (!window.confirm("Delete this room? This cannot be undone.")) return;
+    socketRef.current?.emit("delete-room", { roomId }, (res: { success?: boolean; error?: string }) => {
+      if (res.error) console.error(res.error);
+    });
+  };
+
+  const memberModal = memberModalOpen && selectedRoomId ? (
+    <MemberModal
+      roomId={selectedRoomId}
+      members={roomMembers[selectedRoomId] || []}
+      allUsers={allDbUsers.length > 0 ? allDbUsers : users}
+      onClose={closeMemberModal}
+      onAddMember={handleAddMember}
+      onRemoveMember={handleRemoveMember}
+    />
+  ) : null;
+
   return (
     <div id="app-root" className="h-screen bg-[#1E1F22] flex flex-col text-[#DBDEE1] select-none overflow-hidden font-sans">
 
@@ -589,17 +686,10 @@ export default function App() {
             activeChatId={activeChatId}
             activeChatType={activeChatType}
             unreadCounts={unreadCounts}
-            onSelectChat={(id, type) => {
-              setActiveChatId(id);
-              setActiveChatType(type);
-              const path = type === 'room' ? `/channels/${id}` : `/dm/${id}`;
-              window.history.pushState(null, "", path);
-              setCurrentPath(path);
-              if (window.innerWidth < 768) {
-                setSidebarOpen(false);
-              }
-            }}
+            onSelectChat={handleSelectChat}
             onCreateRoom={handleCreateRoom}
+            onAddMembers={handleAddMembers}
+            onDeleteRoom={handleDeleteRoom}
             onLogout={handleLogout}
           />
         </div>
@@ -653,6 +743,9 @@ export default function App() {
           />
         </div>
       </div>
+
+      {/* Member Management Modal */}
+      {memberModal}
     </div>
   );
 }
