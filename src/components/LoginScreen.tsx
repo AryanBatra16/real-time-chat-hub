@@ -9,6 +9,7 @@ interface LoginScreenProps {
   onLogin: (identifier: string, password: string, callback: (err?: string) => void) => void;
   onRegister: (username: string, email: string, password: string, callback: (err?: string) => void) => void;
   loading: boolean;
+  onBack: () => void;
 }
 
 const MEMORABLE_NAMES = [
@@ -17,14 +18,14 @@ const MEMORABLE_NAMES = [
   "SilentStorm", "HyperFocus", "VelvetPulse", "EchoScribe", "CryptoOwl"
 ];
 
-export default function LoginScreen({ onLogin, onRegister, loading }: LoginScreenProps) {
+export default function LoginScreen({ onLogin, onRegister, loading, onBack }: LoginScreenProps) {
   // Force scroll to top on mount
   React.useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
   }, []);
 
   // Navigation & interaction states
-  const [showLoginSection, setShowLoginSection] = useState(false);
+  const [showLoginSection, setShowLoginSection] = useState(true);
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   
   // Login fields
@@ -535,7 +536,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
                   <div className="flex items-center gap-3 pt-2">
                     <button
                       type="button"
-                      onClick={() => setShowLoginSection(false)}
+                      onClick={onBack}
                       className="flex-1 text-center py-3 border border-[#1e1f22] hover:bg-[#35373C] text-xs font-bold rounded-lg text-white transition-colors cursor-pointer"
                     >
                       Back
@@ -625,7 +626,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
                   <div className="flex items-center gap-3 pt-2">
                     <button
                       type="button"
-                      onClick={() => setShowLoginSection(false)}
+                      onClick={onBack}
                       className="flex-1 text-center py-3 border border-[#1e1f22] hover:bg-[#35373C] text-xs font-bold rounded-lg text-white transition-colors cursor-pointer"
                     >
                       Back

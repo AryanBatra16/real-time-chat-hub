@@ -558,6 +558,7 @@ export default function App() {
         onLogin={handleLogin}
         onRegister={handleRegister}
         loading={loginLoading}
+        onBack={() => setShowLanding(true)}
       />
     );
   }
