@@ -521,6 +521,11 @@ async function startServer() {
 
       rooms.push(newRoom);
       
+      // Auto-join all currently active sockets to the new room channel
+      io.sockets.sockets.forEach((s) => {
+        s.join(nameNormalized);
+      });
+      
       io.emit("room-created", newRoom);
       callback({ success: true, room: newRoom });
     });
