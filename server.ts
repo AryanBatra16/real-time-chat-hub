@@ -156,7 +156,7 @@ async function startServer() {
           const { data: profile, error: profileErr } = await supabase
             .from("profiles")
             .select("email")
-            .eq("username", trimmedIdentifier)
+            .ilike("username", trimmedIdentifier)
             .maybeSingle();
 
           if (profileErr || !profile) {
