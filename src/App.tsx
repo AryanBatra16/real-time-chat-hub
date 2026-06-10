@@ -85,19 +85,22 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
 
-    if (currentPath === "/") {
+    const isRoot = currentPath === "/" || currentPath === "/index.html" || currentPath === "";
+    if (isRoot) {
       window.history.replaceState(null, "", "/channels/general");
       setCurrentPath("/channels/general");
       setActiveChatId("general");
       setActiveChatType("room");
     } else if (currentPath.startsWith("/channels/")) {
-      const roomId = currentPath.split("/")[2];
+      const parts = currentPath.split("/").filter(Boolean);
+      const roomId = parts[1];
       if (roomId && rooms.some(r => r.id === roomId)) {
         setActiveChatId(roomId);
         setActiveChatType("room");
       }
     } else if (currentPath.startsWith("/dm/")) {
-      const userId = currentPath.split("/")[2];
+      const parts = currentPath.split("/").filter(Boolean);
+      const userId = parts[1];
       if (userId && users.some(u => u.id === userId)) {
         setActiveChatId(userId);
         setActiveChatType("dm");
@@ -107,20 +110,23 @@ export default function App() {
 
   // Routing validation checks
   const isPathValid = (() => {
-    if (currentPath === "/") return true;
-    if (currentPath.startsWith("/channels/")) {
-      const roomId = currentPath.split("/")[2];
-      if (rooms.length > 0) {
-        return rooms.some(r => r.id === roomId);
+    if (currentPath === "/" || currentPath === "/index.html" || currentPath === "") return true;
+    
+    const parts = currentPath.split("/").filter(Boolean);
+    if (parts.length === 2) {
+      const [type, id] = parts;
+      if (type === "channels") {
+        if (rooms.length > 0) {
+          return rooms.some(r => r.id === id);
+        }
+        return true;
       }
-      return true; // Wait for room list sync
-    }
-    if (currentPath.startsWith("/dm/")) {
-      const userId = currentPath.split("/")[2];
-      if (users.length > 0) {
-        return users.some(u => u.id === userId);
+      if (type === "dm") {
+        if (users.length > 0) {
+          return users.some(u => u.id === id);
+        }
+        return true;
       }
-      return true; // Wait for users sync
     }
     return false; // Unrecognized routes
   })();
@@ -506,7 +512,8 @@ export default function App() {
   // 404 rendering check
   const show404 = (() => {
     if (restoringSession) return false;
-    if (!currentPath.startsWith("/channels/") && !currentPath.startsWith("/dm/") && currentPath !== "/") {
+    const isRoot = currentPath === "/" || currentPath === "/index.html" || currentPath === "";
+    if (!currentPath.startsWith("/channels/") && !currentPath.startsWith("/dm/") && !isRoot) {
       return true; // Completely invalid route
     }
     // Room/DM route check - wait until lists are synchronized
