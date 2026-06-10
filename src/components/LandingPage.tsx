@@ -263,47 +263,47 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
       </main>
 
       {/* Feature Grid / Technological Overview */}
-      <section id="key-features" className="py-20 bg-[#232428]/40 border-y border-[#2B2D31]/40">
+      <section id="key-features" className="py-24 bg-[#232428]/40 border-y border-[#2B2D31]/40">
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-            <h2 className="text-xs uppercase font-extrabold tracking-widest text-[#5865F2]">Premium Features</h2>
-            <h3 className="text-2xl md:text-3xl font-black text-white leading-tight">Engineered for seamless collaboration</h3>
-            <p className="text-sm text-[#949BA4]">Our workspace delivers instant message delivery and real-time state synchronization.</p>
+          <div className="text-center max-w-3xl mx-auto mb-20 space-y-4">
+            <h2 className="text-sm uppercase font-extrabold tracking-widest text-[#5865F2]">Features</h2>
+            <h3 className="text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight">Built for easy teamwork</h3>
+            <p className="text-base md:text-lg text-[#949BA4]">Simple, fast, and secure messaging for you and your team.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
             
             {/* Metric 1 */}
-            <div className="bg-[#2B2D31]/60 border border-[#1e1f22]/80 p-6 rounded-xl space-y-4 hover:border-[#5865F2]/40 transition-colors group">
-              <div className="w-10 h-10 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/30 flex items-center justify-center text-[#5865F2] group-hover:scale-110 transition-transform">
-                <Zap className="w-5 h-5" />
+            <div className="bg-[#2B2D31]/60 border border-[#1e1f22]/80 p-8 rounded-2xl space-y-5 hover:border-[#5865F2]/40 transition-colors group">
+              <div className="w-12 h-12 rounded-xl bg-[#5865F2]/10 border border-[#5865F2]/30 flex items-center justify-center text-[#5865F2] group-hover:scale-110 transition-transform">
+                <Zap className="w-6 h-6" />
               </div>
-              <h4 className="font-bold text-white text-base">Instant Ingress</h4>
-              <p className="text-xs text-[#949BA4] leading-relaxed">
-                Experience dynamic message transmissions and updates delivered to all connected workspace colleagues in milliseconds.
+              <h4 className="font-bold text-white text-lg md:text-xl">Instant Chat</h4>
+              <p className="text-sm text-[#949BA4] leading-relaxed">
+                Send and receive messages instantly. Your team gets updates in real time with zero delays.
               </p>
             </div>
 
             {/* Metric 2 */}
-            <div className="bg-[#2B2D31]/60 border border-[#1e1f22]/80 p-6 rounded-xl space-y-4 hover:border-[#5865F2]/40 transition-colors group">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-[#23A559] group-hover:scale-110 transition-transform">
-                <Shield className="w-5 h-5" />
+            <div className="bg-[#2B2D31]/60 border border-[#1e1f22]/80 p-8 rounded-2xl space-y-5 hover:border-[#5865F2]/40 transition-colors group">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-[#23A559] group-hover:scale-110 transition-transform">
+                <Shield className="w-6 h-6" />
               </div>
-              <h4 className="font-bold text-white text-base">Secure Persistence</h4>
-              <p className="text-xs text-[#949BA4] leading-relaxed">
-                Your workspace profile settings, custom avatars, channels, and conversation histories are securely saved in the cloud.
+              <h4 className="font-bold text-white text-lg md:text-xl">Always Saved</h4>
+              <p className="text-sm text-[#949BA4] leading-relaxed">
+                Your profile settings, channels, and chat history are safely saved in the cloud.
               </p>
             </div>
 
             {/* Metric 3 */}
-            <div className="bg-[#2B2D31]/60 border border-[#1e1f22]/80 p-6 rounded-xl space-y-4 hover:border-[#5865F2]/40 transition-colors group">
-              <div className="w-10 h-10 rounded-lg bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-500 group-hover:scale-110 transition-transform">
-                <MessageSquare className="w-5 h-5" />
+            <div className="bg-[#2B2D31]/60 border border-[#1e1f22]/80 p-8 rounded-2xl space-y-5 hover:border-[#5865F2]/40 transition-colors group">
+              <div className="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-500 group-hover:scale-110 transition-transform">
+                <MessageSquare className="w-6 h-6" />
               </div>
-              <h4 className="font-bold text-white text-base">Channels & DMs</h4>
-              <p className="text-xs text-[#949BA4] leading-relaxed">
-                Seamlessly toggle between public collaboration channels and secure direct messaging with modern live typing indicator displays.
+              <h4 className="font-bold text-white text-lg md:text-xl">Rooms & DMs</h4>
+              <p className="text-sm text-[#949BA4] leading-relaxed">
+                Easily switch between public chat rooms and private direct messages with typing indicators.
               </p>
             </div>
 

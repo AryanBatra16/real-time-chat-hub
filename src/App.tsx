@@ -24,16 +24,16 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeChatId, setActiveChatId] = useState<string>("general");
   const [activeChatType, setActiveChatType] = useState<'room' | 'dm'>("room");
-  
+
   // Unread badge tracking: chat id (roomId or userId of sender) -> count
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-  
+
   // Typing indicators: targetId (roomId or DM room partner Id) -> list of usernames typing
   const [typingMap, setTypingMap] = useState<Record<string, Record<string, boolean>>>({});
-  
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [infoSidebarOpen, setInfoSidebarOpen] = useState(true);
-  
+
   const [loginLoading, setLoginLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
@@ -111,7 +111,7 @@ export default function App() {
   // Routing validation checks
   const isPathValid = (() => {
     if (currentPath === "/" || currentPath === "/index.html" || currentPath === "") return true;
-    
+
     const parts = currentPath.split("/").filter(Boolean);
     if (parts.length === 2) {
       const [type, id] = parts;
@@ -235,7 +235,7 @@ export default function App() {
 
     socket.on("user-left", (leftData: { id: string; username: string }) => {
       setUsers((prev) => prev.filter((u) => u.id !== leftData.id));
-      
+
       setTypingMap((prev) => {
         const next = { ...prev };
         Object.keys(next).forEach((k) => {
@@ -258,7 +258,7 @@ export default function App() {
       });
 
       // Update unread badges
-      const isCurrentLocation = 
+      const isCurrentLocation =
         (msg.roomId && activeChatTypeRef.current === 'room' && activeChatIdRef.current === msg.roomId) ||
         (msg.receiverId && !msg.roomId && activeChatTypeRef.current === 'dm' && activeChatIdRef.current === msg.senderId);
 
@@ -294,8 +294,8 @@ export default function App() {
       setMessages((prev) =>
         prev.map((m) => {
           if (m.senderId === payload.senderId && m.receiverId === payload.readerId && m.status !== "read") {
-            return { 
-              ...m, 
+            return {
+              ...m,
               status: "read",
               readAt: payload.readAt || new Date().toISOString(),
               deliveredAt: m.deliveredAt || new Date().toISOString()
@@ -353,7 +353,7 @@ export default function App() {
 
       if (res.success && res.token && res.user) {
         localStorage.setItem(STORED_TOKEN_KEY, res.token);
-        
+
         // Re-authenticate session setup
         socketRef.current?.emit("user-init-auth", { token: res.token }, (authRes: {
           success?: boolean;
@@ -476,7 +476,7 @@ export default function App() {
 
     if (activeChatType === "dm") {
       socketRef.current.emit("mark-as-read", { senderId: activeChatId });
-      
+
       setMessages((prev) =>
         prev.map((m) => {
           if (m.senderId === activeChatId && m.receiverId === currentUser.id && m.status !== "read") {
@@ -532,10 +532,10 @@ export default function App() {
       <div className="h-screen w-screen bg-[#1E1F22] flex flex-col items-center justify-center select-none font-sans">
         <div className="relative flex flex-col items-center gap-6">
           <div className="relative w-16 h-16 flex items-center justify-center">
-            <img 
-              src="/collabspace_logo.png" 
-              alt="CollabSpace Logo" 
-              className="w-16 h-16 object-contain rounded-2xl shadow-xl shadow-[#5865F2]/20 animate-pulse" 
+            <img
+              src="/collabspace_logo.png"
+              alt="CollabSpace Logo"
+              className="w-16 h-16 object-contain rounded-2xl shadow-xl shadow-[#5865F2]/20 animate-pulse"
             />
             <div className="absolute inset-0 border-2 border-[#5865F2] border-t-transparent rounded-2xl animate-spin" />
           </div>
@@ -565,7 +565,7 @@ export default function App() {
 
   return (
     <div id="app-root" className="h-screen bg-[#1E1F22] flex flex-col text-[#DBDEE1] select-none overflow-hidden font-sans">
-      
+
       {/* Top micro reconnecting alert pill */}
       {reconnecting && (
         <div className="bg-[#F23F43]/10 border-b border-[#F23F43]/20 text-[#F23F43] py-1.5 px-4 text-xs font-bold text-center flex items-center justify-center gap-2 animate-pulse">
@@ -576,7 +576,7 @@ export default function App() {
 
       {/* Main content container */}
       <div className="flex-1 flex overflow-hidden relative bg-[#1E1F22]">
-        
+
         {/* Navigation Sidebar Panel (Collapsible drawer) */}
         <div className={`
           absolute z-30 h-full md:static transition-all duration-300 ease-in-out flex-shrink-0
