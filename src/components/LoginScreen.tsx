@@ -163,7 +163,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#949BA4] bg-[#2B2D31]/45 px-3 py-1.5 rounded-full border border-[#1e1f22]/20">
             <span className="w-2 h-2 bg-[#23A559] rounded-full animate-pulse" />
-            <span className="font-semibold tracking-wide">Socket Mesh Active</span>
+            <span className="font-semibold tracking-wide">Chat Service Online</span>
           </div>
           
           <button 
@@ -193,7 +193,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#23A559] opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[#23A559]"></span>
             </span>
-            <span className="text-[11px] font-bold text-white tracking-widest uppercase">Next Generation WebSocket Engine v2.0</span>
+            <span className="text-[11px] font-bold text-white tracking-widest uppercase">High Performance Messaging Workspace</span>
           </motion.div>
 
           {/* Majestic Hero Typography */}
@@ -217,7 +217,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
               transition={{ duration: 0.6, delay: 0.2 }}
               className="text-base md:text-lg text-[#949BA4] max-w-xl font-normal leading-relaxed"
             >
-              Experience instantaneous node interactions. Persist rooms, direct messages, and authentication profiles securely using our integrated Supabase engine. Setup an account and plunge instantly into shared workspace channels.
+              Experience instant communication with your team. Access secure chat channels, private messaging threads, and custom profile tags immediately. Set up an account and start collaborating in real-time.
             </motion.p>
           </div>
 
@@ -240,7 +240,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
               href="#key-features"
               className="px-6 py-4 bg-[#2B2D31] hover:bg-[#35373C] border border-[#1e1f22] text-white font-semibold rounded-xl transition-all cursor-pointer text-sm md:text-base flex items-center gap-1.5"
             >
-              Explore Tech Stack
+              Explore Features
             </a>
           </motion.div>
 
@@ -253,15 +253,15 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
           >
             <div>
               <p className="text-xl md:text-2xl font-black text-white">100%</p>
-              <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mt-1">Full-Mesh Sockets</p>
+              <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mt-1">Instant Sync</p>
             </div>
             <div>
               <p className="text-xl md:text-2xl font-black text-white">&lt; 3ms</p>
-              <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mt-1">Message Ingress</p>
+              <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mt-1">Delivery Time</p>
             </div>
             <div>
               <p className="text-xl md:text-2xl font-black text-white">Secure</p>
-              <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mt-1">Supabase DB</p>
+              <p className="text-[11px] text-[#949BA4] uppercase font-bold tracking-wider mt-1">Cloud Saved</p>
             </div>
           </motion.div>
         </div>
@@ -334,7 +334,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
                     <span className="text-[11px] font-bold text-white">CyberScribe</span>
                     <span className="bg-[#23a559] text-[8px] font-black tracking-wide text-white px-1.5 py-0.5 rounded uppercase">Server</span>
                   </div>
-                  <p className="text-[12px] font-medium text-white leading-snug">Yes! Deliveries are instantaneous across the native Node network. Try moving your cursor—this layout preserves full 3D perspective!</p>
+                  <p className="text-[12px] font-medium text-white leading-snug">Yes! Messages deliver instantly to all group members in real-time. Try moving your cursor—this layout preserves full 3D perspective!</p>
                 </div>
               </div>
 
@@ -368,9 +368,9 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-            <h2 className="text-xs uppercase font-extrabold tracking-widest text-[#5865F2]">State Architecture</h2>
-            <h3 className="text-2xl md:text-3xl font-black text-white leading-tight">Engineered for seamless ephemeral sync</h3>
-            <p className="text-sm text-[#949BA4]">Our full-mesh workspace delivers instantaneous socket dispatch with native state recovery.</p>
+            <h2 className="text-xs uppercase font-extrabold tracking-widest text-[#5865F2]">Premium Features</h2>
+            <h3 className="text-2xl md:text-3xl font-black text-white leading-tight">Engineered for seamless collaboration</h3>
+            <p className="text-sm text-[#949BA4]">Our workspace delivers instant message delivery and real-time state synchronization.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -382,7 +382,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
               </div>
               <h4 className="font-bold text-white text-base">Instant Ingress</h4>
               <p className="text-xs text-[#949BA4] leading-relaxed">
-                Powered by native Socket.io protocols and high performance connection pipelines. Delivers user states in under 3 milliseconds.
+                Experience dynamic message transmissions and updates delivered to all connected workspace colleagues in milliseconds.
               </p>
             </div>
 
@@ -393,7 +393,7 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
               </div>
               <h4 className="font-bold text-white text-base">Secure Persistence</h4>
               <p className="text-xs text-[#949BA4] leading-relaxed">
-                Auth profiles, custom user avatars, rooms, and chat records are safely stored inside your Supabase project instance.
+                Your workspace profile settings, custom avatars, channels, and conversation histories are securely saved in the cloud.
               </p>
             </div>
 
@@ -655,10 +655,10 @@ export default function LoginScreen({ onLogin, onRegister, loading }: LoginScree
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-[#23A559] rounded-full animate-pulse" />
-            <span>High precision Node process live ingress active.</span>
+            <span>Secure connection to the workspace is active.</span>
           </div>
           <div>
-            <span>© {new Date().getFullYear()} Real-Time Chat Hub. Connected with Supabase.</span>
+            <span>© {new Date().getFullYear()} Real-Time Chat Hub. Secure cloud integration enabled.</span>
           </div>
         </div>
       </footer>

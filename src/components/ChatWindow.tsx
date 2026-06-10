@@ -282,7 +282,7 @@ export default function ChatWindow({
             </div>
             <h4 className="text-[#DBDEE1] font-bold text-sm">No Messages Yet</h4>
             <p className="text-[#949BA4] text-xs mt-1.5 leading-relaxed">
-              Be the first to say hello! Your conversation history is cached securely in your Supabase cloud database.
+              Be the first to say hello! Your conversation history is securely saved and synchronized in the cloud.
             </p>
           </div>
         ) : (

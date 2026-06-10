@@ -117,7 +117,7 @@ export default function InfoSidebar({
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs text-[#949BA4]">
               <ShieldCheck className="w-4 h-4 text-[#23A559]" />
-              <span className="font-medium">Full-mesh Socket.io presence enabled.</span>
+              <span className="font-medium">Secure workspace connection active.</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-[#949BA4]">
               <Calendar className="w-4 h-4 text-[#949BA4]" />
