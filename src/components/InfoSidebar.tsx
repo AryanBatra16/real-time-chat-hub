@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { User, Room, Message } from "../types";
-import { Search, Calendar, ShieldCheck, HelpCircle, FileText, X } from "lucide-react";
+import { Search, Calendar, ShieldCheck, HelpCircle, FileText } from "lucide-react";
 
 interface InfoSidebarProps {
   activeChatId: string;
@@ -8,7 +8,6 @@ interface InfoSidebarProps {
   rooms: Room[];
   users: User[];
   messages: Message[];
-  onClose: () => void;
 }
 
 export default function InfoSidebar({
@@ -16,8 +15,7 @@ export default function InfoSidebar({
   activeChatType,
   rooms,
   users,
-  messages,
-  onClose
+  messages
 }: InfoSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -39,17 +37,9 @@ export default function InfoSidebar({
     : [];
 
   return (
-    <aside id="info-sidebar-container" className="w-68 bg-[#2B2D31] border-l border-[#1e1f22] flex flex-col h-full flex-shrink-0 hidden lg:flex">
-      {/* Header */}
-      <div className="h-12 border-b border-[#1e1f22] px-4 flex items-center justify-between bg-[#2B2D31] flex-shrink-0">
+    <aside id="info-sidebar-container" className="w-full bg-[#2B2D31] border-l border-[#1e1f22] flex flex-col h-full flex-shrink-0">
+      <div className="h-12 border-b border-[#1e1f22] px-4 flex items-center bg-[#2B2D31] flex-shrink-0">
         <h4 className="text-xs font-bold uppercase tracking-wider text-[#949BA4]">Hub Information</h4>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-[#3F4147] rounded text-[#949BA4] hover:text-white transition-colors cursor-pointer"
-          title="Collapse Information bar"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
 
       <div className="p-4 flex-1 overflow-y-auto space-y-6">

@@ -22,6 +22,8 @@ interface ChatWindowProps {
   onEditMessage: (id: string, newContent: string) => void;
   onDeleteMessage: (id: string) => void;
   onStarMessage: (id: string, isStarred: boolean) => void;
+  infoSidebarOpen: boolean;
+  onToggleInfoSidebar: () => void;
 }
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎉", "🚀", "💡", "👀"];
@@ -41,7 +43,9 @@ export default function ChatWindow({
   onToggleSidebar,
   onEditMessage,
   onDeleteMessage,
-  onStarMessage
+  onStarMessage,
+  infoSidebarOpen,
+  onToggleInfoSidebar
 }: ChatWindowProps) {
   const [inputText, setInputText] = useState("");
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -302,6 +306,17 @@ export default function ChatWindow({
             )}
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={onToggleInfoSidebar}
+          className={`p-2 text-[#949BA4] hover:text-white rounded-lg hover:bg-[#3F4147] transition-all cursor-pointer flex items-center justify-center ${
+            infoSidebarOpen ? "text-white bg-[#3F4147]" : ""
+          }`}
+          title="Toggle Info Panel"
+        >
+          <Info className="w-5 h-5" />
+        </button>
       </header>
 
       {/* Messages layout */}

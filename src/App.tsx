@@ -612,6 +612,14 @@ export default function App() {
           />
         )}
 
+        {/* Mobile Info Sidebar Overlay backdrops */}
+        {infoSidebarOpen && (
+          <div
+            onClick={() => setInfoSidebarOpen(false)}
+            className="md:hidden absolute inset-0 z-20 bg-[#1E1F22]/85 backdrop-blur-sm"
+          />
+        )}
+
         {/* Active chat layout */}
         <ChatWindow
           currentUser={currentUser}
@@ -627,19 +635,23 @@ export default function App() {
           onEditMessage={handleEditMessage}
           onDeleteMessage={handleDeleteMessage}
           onStarMessage={handleStarMessage}
+          infoSidebarOpen={infoSidebarOpen}
+          onToggleInfoSidebar={() => setInfoSidebarOpen(!infoSidebarOpen)}
         />
 
-        {/* Info panel */}
-        {infoSidebarOpen && (
+        {/* Info panel (Collapsible drawer) */}
+        <div className={`
+          absolute right-0 z-30 h-full md:static transition-all duration-300 ease-in-out flex-shrink-0
+          ${infoSidebarOpen ? "translate-x-0 w-64" : "translate-x-full w-0 md:w-0 overflow-hidden"}
+        `}>
           <InfoSidebar
             activeChatId={activeChatId}
             activeChatType={activeChatType}
             rooms={rooms}
             users={users}
             messages={messages}
-            onClose={() => setInfoSidebarOpen(false)}
           />
-        )}
+        </div>
       </div>
     </div>
   );
