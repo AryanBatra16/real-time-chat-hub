@@ -28,6 +28,7 @@ export default function RoomSidebar({
   onSelectChat,
   onCreateRoom,
   onAddMembers,
+  onDeleteRoom,
   onLogout
 }: RoomSidebarProps) {
   const [isCreating, setIsCreating] = useState(false);
