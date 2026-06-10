@@ -8,6 +8,7 @@ import ChatWindow from "./components/ChatWindow";
 import InfoSidebar from "./components/InfoSidebar";
 import { motion, AnimatePresence } from "motion/react";
 import { MessageSquare, ShieldCheck, WifiOff } from "lucide-react";
+import NotFound from "./components/NotFound";
 
 const MESSAGES_STORAGE_KEY = "chat_hub_messages_v1";
 const STORED_TOKEN_KEY = "chat_hub_jwt_token";
@@ -38,6 +39,9 @@ export default function App() {
   const [reconnecting, setReconnecting] = useState(false);
   const [timeTick, setTimeTick] = useState(0);
 
+  // Client-side lightweight routing state
+  const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
+
   const socketRef = useRef<Socket | null>(null);
 
   const activeChatIdRef = useRef(activeChatId);
@@ -60,6 +64,66 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [restoringSession]);
+
+  // Listen to browser URL changes
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener("popstate", handleLocationChange);
+    return () => {
+      window.removeEventListener("popstate", handleLocationChange);
+    };
+  }, []);
+
+  const navigateTo = (path: string) => {
+    window.history.pushState(null, "", path);
+    setCurrentPath(path);
+  };
+
+  // Sync URL pathname changes to active chat state
+  useEffect(() => {
+    if (!currentUser) return;
+
+    if (currentPath === "/") {
+      window.history.replaceState(null, "", "/channels/general");
+      setCurrentPath("/channels/general");
+      setActiveChatId("general");
+      setActiveChatType("room");
+    } else if (currentPath.startsWith("/channels/")) {
+      const roomId = currentPath.split("/")[2];
+      if (roomId && rooms.some(r => r.id === roomId)) {
+        setActiveChatId(roomId);
+        setActiveChatType("room");
+      }
+    } else if (currentPath.startsWith("/dm/")) {
+      const userId = currentPath.split("/")[2];
+      if (userId && users.some(u => u.id === userId)) {
+        setActiveChatId(userId);
+        setActiveChatType("dm");
+      }
+    }
+  }, [currentPath, currentUser, rooms, users]);
+
+  // Routing validation checks
+  const isPathValid = (() => {
+    if (currentPath === "/") return true;
+    if (currentPath.startsWith("/channels/")) {
+      const roomId = currentPath.split("/")[2];
+      if (rooms.length > 0) {
+        return rooms.some(r => r.id === roomId);
+      }
+      return true; // Wait for room list sync
+    }
+    if (currentPath.startsWith("/dm/")) {
+      const userId = currentPath.split("/")[2];
+      if (users.length > 0) {
+        return users.some(u => u.id === userId);
+      }
+      return true; // Wait for users sync
+    }
+    return false; // Unrecognized routes
+  })();
 
   // Trigger relative time recalculation every 60s
   useEffect(() => {
@@ -381,6 +445,9 @@ export default function App() {
           setRooms((prev) => [...prev, res.room!]);
           setActiveChatId(res.room.id);
           setActiveChatType("room");
+          const path = `/channels/${res.room.id}`;
+          window.history.pushState(null, "", path);
+          setCurrentPath(path);
           resolve(true);
         } else {
           resolve(false);
@@ -435,6 +502,23 @@ export default function App() {
         return matchingUser ? matchingUser.username : "Someone";
       });
   };
+
+  // 404 rendering check
+  const show404 = (() => {
+    if (restoringSession) return false;
+    if (!currentPath.startsWith("/channels/") && !currentPath.startsWith("/dm/") && currentPath !== "/") {
+      return true; // Completely invalid route
+    }
+    // Room/DM route check - wait until lists are synchronized
+    if (currentUser && rooms.length > 0 && !isPathValid) {
+      return true;
+    }
+    return false;
+  })();
+
+  if (show404) {
+    return <NotFound onReturn={() => navigateTo("/")} />;
+  }
 
   if (restoringSession) {
     return (
@@ -500,6 +584,9 @@ export default function App() {
             onSelectChat={(id, type) => {
               setActiveChatId(id);
               setActiveChatType(type);
+              const path = type === 'room' ? `/channels/${id}` : `/dm/${id}`;
+              window.history.pushState(null, "", path);
+              setCurrentPath(path);
               if (window.innerWidth < 768) {
                 setSidebarOpen(false);
               }
