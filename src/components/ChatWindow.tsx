@@ -285,7 +285,7 @@ export default function ChatWindow({
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleSidebar}
-            className="md:hidden p-2 -ml-2 text-[#949BA4] hover:text-white rounded-lg hover:bg-[#3F4147] transition-colors cursor-pointer"
+            className="p-2 -ml-2 text-[#949BA4] hover:text-white rounded-lg hover:bg-[#3F4147] transition-colors cursor-pointer"
           >
             <Menu className="w-5 h-5" />
           </button>

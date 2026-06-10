@@ -577,10 +577,10 @@ export default function App() {
       {/* Main content container */}
       <div className="flex-1 flex overflow-hidden relative bg-[#1E1F22]">
         
-        {/* Navigation Sidebar Panel (Drawers on mobile) */}
+        {/* Navigation Sidebar Panel (Collapsible drawer) */}
         <div className={`
-          absolute z-30 h-full md:static md:block transition-all duration-300 md:animate-none
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+          absolute z-30 h-full md:static transition-all duration-300 ease-in-out flex-shrink-0
+          ${sidebarOpen ? "translate-x-0 w-68" : "-translate-x-full w-0 md:w-0 overflow-hidden"}
         `}>
           <RoomSidebar
             currentUser={currentUser}
