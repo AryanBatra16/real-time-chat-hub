@@ -113,7 +113,7 @@ CollabSpace provides a premium chat experience similar to Discord or WhatsApp. I
    ```bash
    npm run dev
    ```
-   The application will launch on **[http://localhost:3000](http://localhost:3000)**.
+   The application will launch on **https://collabspace-oy72.onrender.com**.
 
 ---
 
