@@ -25,6 +25,59 @@ interface ChatWindowProps {
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "🔥", "🎉", "🚀", "💡", "👀"];
 
+const EMOJI_CATEGORIES = [
+  {
+    name: "Smileys & People",
+    icon: "😀",
+    emojis: [
+      "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", 
+      "😋", "😛", "😝", "😜", "🤪", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "🥺", "😢", "😭", 
+      "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", 
+      "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😴", "🥱", "🤮", "🤢", "😷", "🤒", "🤕", "🤠", "😈", 
+      "👿", "💀", "👻", "👽", "👾", "🤖", "💩", "👋", "🤚", "🖐️", "✋", "🖖", "👌", "🤏", "✌️", "🤞", 
+      "🤟", "🤘", "🤙", "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎", "✊", "👊", "👏", "🙌", "👐", 
+      "🤲", "🤝", "🙏", "💪", "🧠", "👀", "👄", "💋"
+    ]
+  },
+  {
+    name: "Animals & Nature",
+    icon: "🌲",
+    emojis: [
+      "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐒", 
+      "🐔", "🐧", "🐦", "🐤", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋", "🐌", 
+      "🐞", "🐜", "🕷️", "🦂", "🐢", "🐍", "🦎", "🐙", "🦑", "🦀", "🐡", "🐠", "🐟", "🐬", "🐳", "🦈", 
+      "🐊", "🐅", "🐆", "🦓", "🦍", "🐘", "🐪", "🦒", "🦘", "🐂", "🐈", "🌲", "🌳", "🌴", "🌵", "🌿", "🍀", 
+      "🍁", "🍂", "🍃", "🍄", "🌹", "🥀", "🌺", "🌸", "🌼", "🌻", "🌞", "🌝", "🌙", "💫", "⭐️", "🌟", 
+      "✨", "⚡️", "🔥", "🌈", "☀️", "☁️", "🌧️", "❄️", "🌊"
+    ]
+  },
+  {
+    name: "Food & Drink",
+    icon: "🍔",
+    emojis: [
+      "🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅", 
+      "🍆", "🥑", "🥦", "🥬", "🥒", "🌶️", "🌽", "🥕", "🥔", "🥐", "🍞", "🧀", "🥚", "🍳", "🥞", "🥓", 
+      "🥩", "🍗", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🥗", "🥘", "🍝", "🍜", "🍲", "🍛", "🍣", 
+      "🥟", "🍤", "🍙", "🍰", "🎂", "🧁", "🥧", "🍫", "🍬", "🍭", "🍮", "🍯", "🥛", "☕️", "🍵", "🍶", 
+      "🍷", "🍸", "🍹", "🍺", "🍻", "🥤"
+    ]
+  },
+  {
+    name: "Activities & Symbols",
+    icon: "⚽",
+    emojis: [
+      "⚽️", "🏀", "🏈", "⚾️", "🥎", "🎾", "🏐", "🎱", "🏓", "🏸", "🏒", "⛳️", "🏹", "🎣", 
+      "🥊", "🥋", "🛹", "⛸️", "🏋️‍♀️", "🚴‍♂️", "🏆", "🥇", "🎫", "🎟️", "🎭", "🎨", "🎬", "🎤", "🎧", 
+      "🎼", "🎹", "🥁", "🎸", "🎮", "🕹️", "🎲", "🧩", "♟️", "🚗", "🚓", "🚑", "🚒", "🏍️", "🚨", "✈️", 
+      "🚀", "🛸", "⌚️", "📱", "💻", "⌨️", "🖥️", "🖨️", "🎥", "📺", "📷", "🎙️", "🎚️", "🎛️", "⏱️", 
+      "⏳", "💡", "🔦", "🕯️", "💵", "🪙", "✉️", "📦", "✏️", "✒️", "🗒️", "📁", "📂", "💼", "📅", 
+      "🗑️", "🔒", "🔓", "🔑", "🛠️", "⚙️", "🛡️", "🩹", "🧪", "🧬", "🔭", "📡", "❤️", "🧡", "💛", 
+      "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", 
+      "💟", "✔️", "❌", "➕", "➖", "➗", "❓", "❗️", "🏁", "🚩"
+    ]
+  }
+];
+
 export default function ChatWindow({
   currentUser,
   activeChatId,
@@ -52,6 +105,34 @@ export default function ChatWindow({
   const [showForwardMessage, setShowForwardMessage] = useState<Message | null>(null);
   const [showInfoMessage, setShowInfoMessage] = useState<Message | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+  // Emoji Picker states
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [activeCategory, setActiveCategory] = useState(0);
+  const emojiPickerRef = useRef<HTMLDivElement | null>(null);
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    if (showEmojiPicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showEmojiPicker]);
+
+  const handleSelectEmoji = (emoji: string) => {
+    setInputText((prev) => prev + emoji);
+    const textarea = document.getElementById("compose-textarea") as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.focus();
+    }
+  };
 
   // Find info about the target room or user
   const activeRoom = activeChatType === 'room' ? rooms.find((r) => r.id === activeChatId) : null;
@@ -530,7 +611,59 @@ export default function ChatWindow({
               />
               
               <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center text-[#B5BAC1]">
-                <Smile className="w-4.5 h-4.5 text-[#949BA4] hover:text-white cursor-pointer transition-colors" />
+                <div className="relative flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="p-1 hover:bg-[#3F4147] rounded-md transition-all cursor-pointer text-[#949BA4] hover:text-white flex items-center justify-center"
+                    title="Insert Emoji"
+                  >
+                    <Smile className="w-4.5 h-4.5" />
+                  </button>
+
+                  {showEmojiPicker && (
+                    <div 
+                      ref={emojiPickerRef}
+                      className="absolute bottom-10 right-0 z-50 w-72 h-80 bg-[#2B2D31] border border-[#1E1F22] rounded-xl shadow-2xl flex flex-col overflow-hidden text-left"
+                    >
+                      {/* Picker Tabs */}
+                      <div className="flex bg-[#1E1F22] border-b border-[#1E1F22] p-1.5 justify-around flex-shrink-0">
+                        {EMOJI_CATEGORIES.map((cat, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActiveCategory(idx)}
+                            title={cat.name}
+                            className={`p-1.5 text-base rounded hover:bg-[#2B2D31] transition-colors cursor-pointer flex-shrink-0 ${
+                              activeCategory === idx ? "bg-[#2B2D31]" : ""
+                            }`}
+                          >
+                            {cat.icon}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Picker Content list */}
+                      <div className="flex-1 overflow-y-auto p-2.5 grid grid-cols-7 gap-1.5">
+                        {EMOJI_CATEGORIES[activeCategory].emojis.map((emoji, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleSelectEmoji(emoji)}
+                            className="w-8 h-8 flex items-center justify-center text-lg hover:bg-[#3F4147] rounded transition-all cursor-pointer active:scale-95"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Picker footer displaying category name */}
+                      <div className="bg-[#1E1F22] px-3 py-1.5 text-[10px] text-[#949BA4] font-bold uppercase tracking-wider flex-shrink-0 border-t border-[#1E1F22]">
+                        {EMOJI_CATEGORIES[activeCategory].name}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
