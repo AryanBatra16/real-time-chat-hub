@@ -3,8 +3,6 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
 import fs from "fs";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { createServer as createViteServer } from "vite";
 import { User, Message, Room } from "./src/types.js";
 
